@@ -13,11 +13,29 @@ import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { CommsPage } from '@/pages/CommsPage'
+import { KnowledgePage } from '@/pages/KnowledgePage'
+import { TemporalPage } from '@/pages/TemporalPage'
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
     path: "/",
     element: <HomePage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/comms",
+    element: <CommsPage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/knowledge",
+    element: <KnowledgePage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/temporal",
+    element: <TemporalPage />,
     errorElement: <RouteErrorBoundary />,
   },
   {

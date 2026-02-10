@@ -4,17 +4,26 @@ import { Message, GmailMessage } from "../../../worker/types";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Loader2, User, Mail, ChevronRight, Zap, Calendar, Clock, ChevronDown, ChevronUp, Reply } from "lucide-react";
+import { Send, Sparkles, Loader2, User, Mail, ChevronRight, Zap, Calendar, Clock, ChevronDown, ChevronUp, Reply, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const getContextName = () => {
+    if (location.pathname === '/') return 'CORE CORTEX';
+    if (location.pathname === '/comms') return 'COMMS BRIDGE';
+    if (location.pathname === '/knowledge') return 'KNOWLEDGE VAULT';
+    if (location.pathname === '/temporal') return 'TEMPORAL SYNC';
+    return 'SYSTEM';
+  };
   useEffect(() => {
     loadMessages();
-  }, []);
+  }, [location]);
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -34,6 +43,14 @@ export function ChatInterface() {
     const res = await chatService.sendMessage(text);
     if (res.success) await loadMessages();
     setIsLoading(false);
+  };
+  const handleClear = async () => {
+    if (confirm("Initiate memory flush? This will prune the current synaptic history.")) {
+      const id = chatService.getSessionId();
+      await chatService.deleteSession(id);
+      chatService.switchSession(crypto.randomUUID());
+      window.location.reload();
+    }
   };
   const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
   const renderEmailStack = (emails: GmailMessage[]) => (
@@ -81,12 +98,21 @@ export function ChatInterface() {
   );
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto px-4 py-8 relative">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-8 pb-32 no-scrollbar">
+      <div className="absolute top-0 left-0 right-0 flex justify-between items-center px-4 py-2 border-b border-white/5 bg-neural-bg/50 backdrop-blur-sm z-20">
+        <div className="flex items-center gap-2">
+           <div className="h-1.5 w-1.5 rounded-full bg-bio-cyan animate-pulse" />
+           <span className="text-[9px] font-black tracking-widest text-bio-cyan/80 uppercase">{getContextName()}</span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={handleClear} className="h-7 text-[9px] text-white/20 hover:text-alert-pink font-bold uppercase tracking-widest">
+          <Trash2 size={10} className="mr-1" /> Flush
+        </Button>
+      </div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-8 pb-32 pt-12 no-scrollbar">
         {messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-40">
             <div className="relative">
               <div className="absolute inset-0 bg-bio-cyan blur-2xl opacity-20 animate-pulse" />
-              <BrainCircuit className="text-bio-cyan w-16 h-16 relative z-10" />
+              <BrainCircuitIcon className="text-bio-cyan w-16 h-16 relative z-10" />
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.4em] font-bold text-bio-cyan">Cortex Online</p>
@@ -143,7 +169,7 @@ export function ChatInterface() {
     </div>
   );
 }
-function BrainCircuit(props: any) {
+function BrainCircuitIcon(props: any) {
   return (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5a2.5 2.5 0 0 0-4.96-.46 2.5 2.5 0 0 0-1.98 3 2.5 2.5 0 0 0 .3 4.96 2.5 2.5 0 0 0 3.32 1.45 2.5 2.5 0 0 0 3.32-1.45 2.5 2.5 0 0 0 .3-4.96 2.5 2.5 0 0 0-1.98-3 2.5 2.5 0 0 0-4.96.46"/><path d="M15 8h5"/><path d="M15 12h5"/><path d="M15 16h5"/><path d="M8 16h.01"/><path d="M8 20h.01"/><path d="M12 18h.01"/><path d="M12 22h.01"/></svg>
   );

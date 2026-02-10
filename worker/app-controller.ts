@@ -35,16 +35,21 @@ export class AppController extends DurableObject<Env> {
   private async persist(): Promise<void> {
     await this.ctx.storage.put('sessions', Object.fromEntries(this.sessions));
   }
-  // Persistence for Messages
-  async saveMessage(sessionId: string, message: Message): Promise<void> {
-    const key = `msg:${sessionId}:${message.id}`;
-    await this.ctx.storage.put(key, message);
-    // Update session count and activity
+  async updateSessionActivity(sessionId: string): Promise<void> {
     await this.ensureLoaded();
     const session = this.sessions.get(sessionId);
     if (session) {
       session.lastActive = Date.now();
-      // Simple logic for title generation if it's the first message
+      await this.persist();
+    }
+  }
+  async saveMessage(sessionId: string, message: Message): Promise<void> {
+    const key = `msg:${sessionId}:${message.id}`;
+    await this.ctx.storage.put(key, message);
+    await this.ensureLoaded();
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.lastActive = Date.now();
       if (session.title.startsWith('Chat ') && message.role === 'user') {
         session.title = message.content.slice(0, 40) + (message.content.length > 40 ? '...' : '');
       }
@@ -56,7 +61,6 @@ export class AppController extends DurableObject<Env> {
     const list = await this.ctx.storage.list<Message>(options);
     return Array.from(list.values()).sort((a, b) => a.timestamp - b.timestamp);
   }
-  // Memories & Tasks
   async addMemory(sessionId: string, memory: Omit<Memory, 'id' | 'timestamp'>): Promise<void> {
     const id = crypto.randomUUID();
     const key = `mem:${sessionId}:${id}`;
@@ -67,6 +71,10 @@ export class AppController extends DurableObject<Env> {
     const list = await this.ctx.storage.list<Memory>({ prefix: `mem:${sessionId}:` });
     return Array.from(list.values());
   }
+  async deleteMemory(sessionId: string, memoryId: string): Promise<void> {
+    const key = `mem:${sessionId}:${memoryId}`;
+    await this.ctx.storage.delete(key);
+  }
   async createTask(sessionId: string, task: Omit<Task, 'id' | 'createdAt'>): Promise<void> {
     const id = crypto.randomUUID();
     const key = `task:${sessionId}:${id}`;
@@ -75,7 +83,7 @@ export class AppController extends DurableObject<Env> {
   }
   async listTasks(sessionId: string): Promise<Task[]> {
     const list = await this.ctx.storage.list<Task>({ prefix: `task:${sessionId}:` });
-    return Array.from(list.values());
+    return Array.from(list.values()).sort((a, b) => b.createdAt - a.createdAt);
   }
   async updateTaskStatus(sessionId: string, taskId: string, status: Task['status']): Promise<void> {
     const key = `task:${sessionId}:${taskId}`;
@@ -85,7 +93,6 @@ export class AppController extends DurableObject<Env> {
       await this.ctx.storage.put(key, task);
     }
   }
-  // Existing Service Logic
   async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens): Promise<void> {
     const key = `tokens:${sessionId}:${service}`;
     const metaKey = `service:${sessionId}:${service}`;
@@ -126,7 +133,7 @@ export class AppController extends DurableObject<Env> {
       const serviceKeys = await this.ctx.storage.list({ prefix: `service:${sessionId}:` });
       const tokenKeys = await this.ctx.storage.list({ prefix: `tokens:${sessionId}:` });
       const allKeys = [
-        ...keys.keys(), ...taskKeys.keys(), ...memKeys.keys(), 
+        ...keys.keys(), ...taskKeys.keys(), ...memKeys.keys(),
         ...serviceKeys.keys(), ...tokenKeys.keys()
       ];
       if (allKeys.length > 0) await this.ctx.storage.delete(allKeys);

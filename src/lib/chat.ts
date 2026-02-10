@@ -1,9 +1,14 @@
-import type { Message, ChatState, ToolCall, SessionInfo, ConnectedService } from '../../worker/types';
+import type { Message, ChatState, ToolCall, SessionInfo, ConnectedService, GmailMessage } from '../../worker/types';
 export interface ChatResponse {
   success: boolean;
   data?: ChatState;
   error?: string;
 }
+export const MODELS = [
+  { id: 'google-ai-studio/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+  { id: 'google-ai-studio/gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+  { id: 'openai/gpt-4o', name: 'GPT-4o' }
+];
 class ChatService {
   private sessionId: string;
   private baseUrl: string;
@@ -71,6 +76,38 @@ class ChatService {
       const json = await res.json();
       return json.success ? json.data.url : null;
     } catch { return null; }
+  }
+  async getMemories(): Promise<any[]> {
+    try {
+      const res = await fetch(`/api/memories?sessionId=${this.sessionId}`);
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch { return []; }
+  }
+  async getTasks(): Promise<any[]> {
+    try {
+      const res = await fetch(`/api/tasks?sessionId=${this.sessionId}`);
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch { return []; }
+  }
+  async updateTaskStatus(taskId: string, status: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, sessionId: this.sessionId })
+      });
+      const json = await res.json();
+      return !!json.success;
+    } catch { return false; }
+  }
+  async getEmails(): Promise<GmailMessage[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/emails`);
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch { return []; }
   }
   getSessionId(): string { return this.sessionId; }
   switchSession(sessionId: string): void {

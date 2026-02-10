@@ -1,143 +1,100 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Mail, Reply, Archive, Star, Filter, ArrowLeft, BrainCircuit, Sparkles, UserCircle } from "lucide-react";
+import { Mail, Send, Reply, Archive, Star, Search, Filter, ArrowLeft } from "lucide-react";
 import { chatService } from "@/lib/chat";
-import { useNavigate } from "react-router-dom";
-import { GmailMessage, ConnectedService } from "../../worker/types";
+import { motion, AnimatePresence } from "framer-motion";
+import { GmailMessage } from "../../worker/types";
 export function CommsPage() {
   const [emails, setEmails] = useState<GmailMessage[]>([]);
-  const [services, setServices] = useState<ConnectedService[]>([]);
-  const [activeEmail, setActiveEmail] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const loadInitial = useCallback(async () => {
-    const status = await chatService.getServiceStatus();
-    setServices(status);
-    if (status.length > 0 && !activeEmail) {
-      setActiveEmail(status[0].email || "");
-    }
-  }, [activeEmail]);
-  const loadEmails = useCallback(async (emailToFetch?: string) => {
-    if (!emailToFetch) return;
-    setLoading(true);
-    const data = await chatService.getEmails(emailToFetch);
-    setEmails(data);
-    setLoading(false);
+  useEffect(() => {
+    loadEmails();
   }, []);
-  useEffect(() => { loadInitial(); }, [loadInitial]);
-  useEffect(() => { if (activeEmail) loadEmails(activeEmail); }, [activeEmail, loadEmails]);
+  const loadEmails = async () => {
+    const data = await chatService.getEmails();
+    setEmails(data);
+  };
   const selectedEmail = emails.find(e => e.id === selectedId);
-  const handleAISummarize = () => {
-    if (!selectedEmail) return;
-    const context = `Summarize shard: Account: ${activeEmail}. Subject: ${selectedEmail.subject}. Content: ${selectedEmail.snippet}`;
-    navigate(`/?context=${encodeURIComponent(context)}`);
-  };
-  const handleAIReply = () => {
-    if (!selectedEmail) return;
-    const context = `Draft a reply from ${activeEmail} regarding "${selectedEmail.subject}".`;
-    navigate(`/?context=${encodeURIComponent(context)}`);
-  };
   return (
     <AppLayout>
-      <div className="h-full flex flex-col bg-transparent">
-        <header className="shrink-0 px-8 py-4 border-b border-white/5 flex items-center justify-between bg-neural-bg/50 backdrop-blur-sm z-10">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-bio-cyan/10 border border-bio-cyan/20 flex items-center justify-center">
-                <Mail className="text-bio-cyan w-5 h-5" />
-              </div>
-              <h1 className="text-xl font-black tracking-tighter uppercase">SYNAPTIC COMMS</h1>
-            </div>
-            <div className="hidden md:block h-6 w-[1px] bg-white/10" />
-            <Select value={activeEmail} onValueChange={setActiveEmail}>
-              <SelectTrigger className="w-[240px] bg-white/5 border-white/10 h-10 text-[10px] uppercase font-black tracking-widest text-bio-cyan">
-                <UserCircle size={14} className="mr-2" />
-                <SelectValue placeholder="Select Node" />
-              </SelectTrigger>
-              <SelectContent className="neural-glass border-white/10">
-                {services.map(s => (
-                  <SelectItem key={s.email} value={s.email || ""} className="text-[10px] uppercase font-bold">
-                    {s.display_name || s.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="h-full flex flex-col">
+        <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Mail className="text-bio-cyan w-6 h-6" />
+            <h1 className="text-xl font-black tracking-tight">Comms Stream</h1>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="ghost" size="sm" className="text-[10px] uppercase font-bold tracking-widest text-white/40 hover:text-white" onClick={() => loadEmails(activeEmail)}>
-               <Filter size={12} className="mr-2" /> RE-SYNC
+             <Button variant="outline" size="sm" className="bg-white/5 border-white/10 text-[10px] uppercase font-bold">
+               <Filter size={12} className="mr-2" /> Filter
              </Button>
           </div>
         </header>
         <div className="flex-1 flex overflow-hidden">
           {/* List */}
           <div className={`flex-1 lg:flex-none lg:w-[400px] overflow-y-auto border-r border-white/5 p-4 space-y-3 no-scrollbar ${selectedId ? 'hidden lg:block' : 'block'}`}>
-            {loading ? (
-              <div className="flex items-center justify-center py-20 opacity-20"><BrainCircuit className="animate-pulse" /></div>
-            ) : emails.map((email) => (
-              <NeuralCard
-                key={email.id}
+            {emails.map((email) => (
+              <NeuralCard 
+                key={email.id} 
                 onClick={() => setSelectedId(email.id)}
-                className={`p-4 cursor-pointer transition-all duration-300 group ${selectedId === email.id ? 'bg-bio-cyan/10 border-bio-cyan/30 shadow-[0_0_15px_rgba(0,212,255,0.05)]' : 'bg-white/[0.02] border-white/5 hover:border-bio-cyan/20'}`}
+                className={`p-4 cursor-pointer transition-all duration-300 ${selectedId === email.id ? 'bg-bio-cyan/10 border-bio-cyan/30 shadow-[0_0_15px_rgba(0,212,255,0.1)]' : 'bg-white/5 border-white/5 hover:border-white/10'}`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black text-bio-cyan uppercase truncate max-w-[180px]">{email.sender.split('<')[0]}</span>
-                  <span className="text-[9px] font-mono text-white/20">{email.date.split(',')[0]}</span>
+                  <span className="text-[10px] font-black text-bio-cyan uppercase truncate max-w-[150px]">{email.sender}</span>
+                  <span className="text-[9px] font-mono text-white/20">{email.date}</span>
                 </div>
                 <h4 className="text-xs font-bold text-white/90 truncate mb-1">{email.subject}</h4>
-                <p className="text-[11px] text-white/40 line-clamp-2 leading-tight">{email.snippet}</p>
+                <p className="text-[11px] text-white/40 line-clamp-2">{email.snippet}</p>
               </NeuralCard>
             ))}
           </div>
           {/* Detailed View */}
-          <div className={`flex-1 flex flex-col bg-neural-bg/10 ${!selectedId ? 'hidden lg:flex items-center justify-center opacity-10' : 'flex'}`}>
+          <div className={`flex-1 flex flex-col bg-neural-bg/30 ${!selectedId ? 'hidden lg:flex items-center justify-center opacity-10' : 'flex'}`}>
             {selectedEmail ? (
               <>
-                <div className="p-4 border-b border-white/5 lg:hidden bg-neural-bg/50">
+                <div className="p-4 border-b border-white/5 lg:hidden">
                   <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
                     <ArrowLeft size={16} className="mr-2" /> Back
                   </Button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 md:p-10 no-scrollbar">
-                   <div className="max-w-3xl mx-auto space-y-8">
+                <div className="p-10 flex-1 overflow-y-auto">
+                   <div className="max-w-3xl mx-auto space-y-10">
                       <header className="space-y-6">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-bio-cyan/10 border border-bio-cyan/20 flex items-center justify-center text-bio-cyan">
-                              <BrainCircuit size={24} className="animate-pulse" />
+                            <div className="h-12 w-12 rounded-full bg-bio-cyan/20 border border-bio-cyan/30 flex items-center justify-center text-bio-cyan">
+                              <Mail size={24} />
                             </div>
                             <div>
-                              <h2 className="text-2xl font-black tracking-tighter text-white uppercase">{selectedEmail.subject}</h2>
-                              <p className="text-sm text-bio-cyan/60 font-mono mt-1">{selectedEmail.sender}</p>
+                              <h2 className="text-2xl font-black tracking-tight text-white">{selectedEmail.subject}</h2>
+                              <p className="text-sm text-bio-cyan/60 font-medium mt-1">{selectedEmail.sender}</p>
                             </div>
+                          </div>
+                          <div className="flex gap-2">
+                             <Button size="icon" variant="ghost" className="text-white/20 hover:text-white"><Star size={18} /></Button>
+                             <Button size="icon" variant="ghost" className="text-white/20 hover:text-white"><Archive size={18} /></Button>
                           </div>
                         </div>
                       </header>
-                      <NeuralCard className="p-8 bg-white/[0.03] leading-relaxed text-white/80 whitespace-pre-wrap text-sm border-white/10 shadow-xl">
-                        {selectedEmail.snippet}
-                        <div className="mt-8 pt-8 border-t border-white/5 text-[10px] text-white/20 font-mono uppercase italic">
-                          TRANSMISSION NODE: {activeEmail}
-                        </div>
+                      <NeuralCard className="p-8 bg-white/5 leading-relaxed text-white/80 whitespace-pre-wrap text-sm border-white/10">
+                        {selectedEmail.body || selectedEmail.snippet + "\n\n(Full message content retrieved via synaptic bridge)"}
                       </NeuralCard>
-                      <div className="flex flex-wrap gap-4 pt-4">
-                        <Button onClick={handleAIReply} className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 font-black uppercase tracking-widest text-[10px] px-8 py-5 rounded-xl shadow-glow">
-                          <Reply size={16} className="mr-2" /> AI Synthesis Reply
+                      <div className="flex gap-4">
+                        <Button className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 font-bold uppercase tracking-widest text-xs px-8">
+                          <Reply size={16} className="mr-2" /> Reply
                         </Button>
-                        <Button onClick={handleAISummarize} variant="outline" className="border-bio-cyan/20 text-bio-cyan hover:bg-bio-cyan/10 font-black uppercase tracking-widest text-[10px] px-8 py-5 rounded-xl">
-                          <Sparkles size={16} className="mr-2" /> Summarize with Cortex
+                        <Button variant="outline" className="border-white/10 text-white/40 hover:text-white font-bold uppercase tracking-widest text-xs px-8">
+                          Mark as Insight
                         </Button>
                       </div>
                    </div>
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-6 text-center">
-                <Mail size={64} className="text-white/5" />
-                <p className="uppercase tracking-[0.5em] text-[10px] font-black text-white/20">Select a comm node to synthesize</p>
+              <div className="flex flex-col items-center gap-4">
+                <Mail size={48} className="text-white/10" />
+                <p className="uppercase tracking-[0.3em] text-[10px] font-bold text-white/20">Select a comm node to view</p>
               </div>
             )}
           </div>
