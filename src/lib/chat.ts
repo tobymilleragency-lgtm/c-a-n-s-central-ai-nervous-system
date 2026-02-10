@@ -1,14 +1,9 @@
-import type { Message, ChatState, ToolCall, WeatherResult, MCPResult, ErrorResult, SessionInfo, ConnectedService, GmailMessage } from '../../worker/types';
+import type { Message, ChatState, ToolCall, SessionInfo, ConnectedService } from '../../worker/types';
 export interface ChatResponse {
   success: boolean;
   data?: ChatState;
   error?: string;
 }
-export const MODELS = [
-  { id: 'google-ai-studio/gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-  { id: 'google-ai-studio/gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
-  { id: 'google-ai-studio/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-];
 class ChatService {
   private sessionId: string;
   private baseUrl: string;
@@ -38,7 +33,7 @@ class ChatService {
       }
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed to send message' };
+      return { success: false, error: 'Failed' };
     }
   }
   async getMessages(): Promise<ChatResponse> {
@@ -46,44 +41,36 @@ class ChatService {
       const response = await fetch(`${this.baseUrl}/messages`);
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed to load messages' };
+      return { success: false };
     }
   }
   async listSessions(): Promise<SessionInfo[]> {
     try {
-      const response = await fetch('/api/sessions');
-      const json = await response.json();
+      const res = await fetch('/api/sessions');
+      const json = await res.json();
       return json.success ? json.data : [];
-    } catch (error) {
-      return [];
-    }
+    } catch { return []; }
   }
   async deleteSession(sessionId: string): Promise<boolean> {
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
-      const json = await response.json();
-      return !!json.success;
-    } catch (error) {
-      return false;
-    }
-  }
-  async getAuthUrl(service: string): Promise<string | null> {
-    try {
-      const res = await fetch(`/api/auth/google?sessionId=${this.sessionId}`);
+      const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
       const json = await res.json();
-      return json.success ? json.data.url : null;
-    } catch (error) {
-      return null;
-    }
+      return !!json.success;
+    } catch { return false; }
   }
   async getServiceStatus(): Promise<ConnectedService[]> {
     try {
       const res = await fetch(`/api/status/services?sessionId=${this.sessionId}`);
       const json = await res.json();
       return json.success ? json.data : [];
-    } catch (error) {
-      return [];
-    }
+    } catch { return []; }
+  }
+  async getAuthUrl(service: string): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/auth/google?sessionId=${this.sessionId}`);
+      const json = await res.json();
+      return json.success ? json.data.url : null;
+    } catch { return null; }
   }
   getSessionId(): string { return this.sessionId; }
   switchSession(sessionId: string): void {
@@ -96,15 +83,9 @@ export const chatService = new ChatService();
 export const renderToolCall = (toolCall: ToolCall): { label: string; data?: any; type: string } => {
   const result = toolCall.result as any;
   if (!result) return { label: `⚠️ ${toolCall.name}: No result`, type: 'text' };
-  if (result.error) return { label: `❌ ${toolCall.name}: ${result.error}`, type: 'error' };
+  if (result.error) return { label: `❌ Error`, type: 'error' };
   if (toolCall.name === 'get_emails' && result.emails) {
-    return { label: `📧 Retrieved ${result.emails.length} emails`, data: result.emails, type: 'emails' };
+    return { label: `📧 Retreived ${result.emails.length} Synaptic Comm Nodes`, data: result.emails, type: 'emails' };
   }
-  if (toolCall.name === 'get_calendar_events' && result.events) {
-    return { label: `📅 Synced ${result.events.length} temporal nodes`, data: result.events, type: 'calendar' };
-  }
-  if (toolCall.name === 'get_weather') {
-    return { label: `🌤️ Weather: ${result.temperature}°C, ${result.condition}`, type: 'text' };
-  }
-  return { label: `🔧 ${toolCall.name}: Executed`, type: 'text' };
+  return { label: `🔧 ${toolCall.name} executed`, type: 'text' };
 };

@@ -7,8 +7,6 @@
     --foreground: 210 40% 98%;
     --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 7%;
-    --popover-foreground: 210 40% 98%;
     --primary: 191 100% 50%;
     --primary-foreground: 222 47% 11%;
     --secondary: 217 32% 17%;
@@ -17,56 +15,32 @@
     --muted-foreground: 215 20% 65%;
     --accent: 191 100% 50%;
     --accent-foreground: 222 47% 11%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 98%;
     --border: 217 32% 17%;
-    --input: 217 32% 17%;
-    --ring: 191 100% 50%;
-    --radius: 0.75rem;
+    --radius: 1rem;
   }
 }
 @layer base {
   body {
-    @apply bg-[#0a0e1a] text-foreground overflow-hidden;
+    @apply bg-[#0a0e1a] text-foreground overflow-hidden font-sans;
     background-image: 
-      radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-      radial-gradient(at 50% 0%, hsla(225,39%,30%,0.15) 0, transparent 50%),
-      radial-gradient(at 100% 0%, hsla(339,49%,30%,0.1) 0, transparent 50%);
+      radial-gradient(circle at 50% 50%, hsla(222,47%,11%,1) 0%, hsla(222,47%,7%,1) 100%);
   }
-  /* Neural Grid Pattern */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: radial-gradient(rgba(0, 212, 255, 0.05) 1px, transparent 0);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: -1;
-  }
-}
-/* Glowing Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(10, 14, 26, 0.5);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.2);
-  border-radius: 10px;
-  transition: background 0.3s;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 212, 255, 0.5);
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 .neural-glass {
-  @apply bg-[#0f1428]/70 backdrop-blur-xl border border-white/10 shadow-glass;
+  @apply bg-[#0f1428]/60 backdrop-blur-2xl border border-white/10 shadow-glass;
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%);
 }
-.synapse-line {
-  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.2), transparent);
+.synaptic-fire {
+  animation: synaptic-fire 2s ease-in-out infinite;
+}
+@keyframes synaptic-fire {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(0, 212, 255, 0.4); }
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

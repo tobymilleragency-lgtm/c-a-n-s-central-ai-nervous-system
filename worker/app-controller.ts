@@ -1,11 +1,23 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { SessionInfo, ConnectedService } from './types';
+import type { SessionInfo, ConnectedService, Message, ChatState } from './types';
 import type { Env } from './core-utils';
 export interface ServiceTokens {
   access_token: string;
   refresh_token?: string;
   expiry_date?: number;
   scopes: string[];
+}
+export interface Task {
+  id: string;
+  title: string;
+  status: 'pending' | 'completed' | 'in-progress';
+  createdAt: number;
+}
+export interface Memory {
+  id: string;
+  content: string;
+  category: string;
+  timestamp: number;
 }
 export class AppController extends DurableObject<Env> {
   private sessions = new Map<string, SessionInfo>();
@@ -23,6 +35,57 @@ export class AppController extends DurableObject<Env> {
   private async persist(): Promise<void> {
     await this.ctx.storage.put('sessions', Object.fromEntries(this.sessions));
   }
+  // Persistence for Messages
+  async saveMessage(sessionId: string, message: Message): Promise<void> {
+    const key = `msg:${sessionId}:${message.id}`;
+    await this.ctx.storage.put(key, message);
+    // Update session count and activity
+    await this.ensureLoaded();
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.lastActive = Date.now();
+      // Simple logic for title generation if it's the first message
+      if (session.title.startsWith('Chat ') && message.role === 'user') {
+        session.title = message.content.slice(0, 40) + (message.content.length > 40 ? '...' : '');
+      }
+      await this.persist();
+    }
+  }
+  async getConversationMessages(sessionId: string): Promise<Message[]> {
+    const options = { prefix: `msg:${sessionId}:` };
+    const list = await this.ctx.storage.list<Message>(options);
+    return Array.from(list.values()).sort((a, b) => a.timestamp - b.timestamp);
+  }
+  // Memories & Tasks
+  async addMemory(sessionId: string, memory: Omit<Memory, 'id' | 'timestamp'>): Promise<void> {
+    const id = crypto.randomUUID();
+    const key = `mem:${sessionId}:${id}`;
+    const data: Memory = { ...memory, id, timestamp: Date.now() };
+    await this.ctx.storage.put(key, data);
+  }
+  async listMemories(sessionId: string): Promise<Memory[]> {
+    const list = await this.ctx.storage.list<Memory>({ prefix: `mem:${sessionId}:` });
+    return Array.from(list.values());
+  }
+  async createTask(sessionId: string, task: Omit<Task, 'id' | 'createdAt'>): Promise<void> {
+    const id = crypto.randomUUID();
+    const key = `task:${sessionId}:${id}`;
+    const data: Task = { ...task, id, createdAt: Date.now() };
+    await this.ctx.storage.put(key, data);
+  }
+  async listTasks(sessionId: string): Promise<Task[]> {
+    const list = await this.ctx.storage.list<Task>({ prefix: `task:${sessionId}:` });
+    return Array.from(list.values());
+  }
+  async updateTaskStatus(sessionId: string, taskId: string, status: Task['status']): Promise<void> {
+    const key = `task:${sessionId}:${taskId}`;
+    const task = await this.ctx.storage.get<Task>(key);
+    if (task) {
+      task.status = status;
+      await this.ctx.storage.put(key, task);
+    }
+  }
+  // Existing Service Logic
   async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens): Promise<void> {
     const key = `tokens:${sessionId}:${service}`;
     const metaKey = `service:${sessionId}:${service}`;
@@ -35,10 +98,6 @@ export class AppController extends DurableObject<Env> {
       scopes: tokens.scopes
     };
     await this.ctx.storage.put(metaKey, meta);
-  }
-  async getServiceTokens(sessionId: string, service: string): Promise<ServiceTokens | null> {
-    const key = `tokens:${sessionId}:${service}`;
-    return await this.ctx.storage.get<ServiceTokens>(key) || null;
   }
   async listConnectedServices(sessionId: string): Promise<ConnectedService[]> {
     const options = { prefix: `service:${sessionId}:` };
@@ -61,54 +120,21 @@ export class AppController extends DurableObject<Env> {
     const deleted = this.sessions.delete(sessionId);
     if (deleted) {
       await this.persist();
-      // Cleanup tokens for this session
-      const tokenPrefix = `tokens:${sessionId}:`;
-      const metaPrefix = `service:${sessionId}:`;
-      const keys = await this.ctx.storage.list({ prefix: tokenPrefix });
-      const metaKeys = await this.ctx.storage.list({ prefix: metaPrefix });
-      const allKeys = [...Array.from(keys.keys()), ...Array.from(metaKeys.keys())];
-      if (allKeys.length > 0) {
-        await this.ctx.storage.delete(allKeys);
-      }
+      const keys = await this.ctx.storage.list({ prefix: `msg:${sessionId}:` });
+      const taskKeys = await this.ctx.storage.list({ prefix: `task:${sessionId}:` });
+      const memKeys = await this.ctx.storage.list({ prefix: `mem:${sessionId}:` });
+      const serviceKeys = await this.ctx.storage.list({ prefix: `service:${sessionId}:` });
+      const tokenKeys = await this.ctx.storage.list({ prefix: `tokens:${sessionId}:` });
+      const allKeys = [
+        ...keys.keys(), ...taskKeys.keys(), ...memKeys.keys(), 
+        ...serviceKeys.keys(), ...tokenKeys.keys()
+      ];
+      if (allKeys.length > 0) await this.ctx.storage.delete(allKeys);
     }
     return deleted;
-  }
-  async updateSessionActivity(sessionId: string): Promise<void> {
-    await this.ensureLoaded();
-    const session = this.sessions.get(sessionId);
-    if (session) {
-      session.lastActive = Date.now();
-      await this.persist();
-    }
-  }
-  async updateSessionTitle(sessionId: string, title: string): Promise<boolean> {
-    await this.ensureLoaded();
-    const session = this.sessions.get(sessionId);
-    if (session) {
-      session.title = title;
-      await this.persist();
-      return true;
-    }
-    return false;
   }
   async listSessions(): Promise<SessionInfo[]> {
     await this.ensureLoaded();
     return Array.from(this.sessions.values()).sort((a, b) => b.lastActive - a.lastActive);
-  }
-  async getSessionCount(): Promise<number> {
-    await this.ensureLoaded();
-    return this.sessions.size;
-  }
-  async getSession(sessionId: string): Promise<SessionInfo | null> {
-    await this.ensureLoaded();
-    return this.sessions.get(sessionId) || null;
-  }
-  async clearAllSessions(): Promise<number> {
-    await this.ensureLoaded();
-    const count = this.sessions.size;
-    this.sessions.clear();
-    await this.persist();
-    await this.ctx.storage.deleteAll();
-    return count;
   }
 }
