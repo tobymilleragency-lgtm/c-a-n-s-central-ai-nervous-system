@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Mail, Calendar, Info, Clock, ArrowUpRight, ShieldAlert, BrainCircuit, Zap, CheckCircle2 } from "lucide-react";
 import { chatService } from "@/lib/chat";
@@ -10,31 +11,37 @@ export function PeripheralPanel() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [memories, setMemories] = useState<any[]>([]);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
-  const fetchData = async () => {
-    const [status, emailData, taskData, memoryData] = await Promise.all([
-      chatService.getServiceStatus(),
-      chatService.getEmails(),
-      chatService.getTasks(),
-      chatService.getMemories()
-    ]);
-    setServices(status);
-    setEmails(emailData.slice(0, 3));
-    setTasks(taskData.slice(0, 3));
-    setMemories(memoryData.slice(0, 1));
-    setLastUpdate(Date.now());
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      const [status, emailData, taskData, memoryData] = await Promise.all([
+        chatService.getServiceStatus(),
+        chatService.getEmails(),
+        chatService.getTasks(),
+        chatService.getMemories()
+      ]);
+      setServices(Array.isArray(status) ? status : []);
+      setEmails(Array.isArray(emailData) ? emailData.slice(0, 3) : []);
+      setTasks(Array.isArray(taskData) ? taskData.slice(0, 3) : []);
+      setMemories(Array.isArray(memoryData) ? memoryData.slice(0, 1) : []);
+      setLastUpdate(Date.now());
+    } catch (error) {
+      console.error("Peripheral failure:", error);
+    }
+  }, []);
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 20000);
-    const handleAuth = () => fetchData();
-    window.addEventListener('message', (e) => {
-      if (e.data?.type === 'AUTH_SUCCESS') handleAuth();
-    });
+    const handleAuth = (e: MessageEvent) => {
+      if (e.data?.type === 'AUTH_SUCCESS') {
+        fetchData();
+      }
+    };
+    window.addEventListener('message', handleAuth);
     return () => {
       clearInterval(interval);
       window.removeEventListener('message', handleAuth);
     };
-  }, []);
+  }, [fetchData]);
   const isConnected = (name: string) => services.some(s => s.name === name && s.status === 'active');
   const systemLinked = isConnected('gmail') || isConnected('calendar');
   return (
@@ -155,10 +162,10 @@ export function PeripheralPanel() {
             <span className="text-bio-cyan">74%</span>
           </div>
           <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-             <motion.div 
+             <motion.div
                animate={{ width: ["40%", "74%", "60%"] }}
                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-               className="h-full bg-gradient-to-r from-bio-cyan/20 to-bio-cyan shadow-[0_0_10px_#00d4ff]" 
+               className="h-full bg-gradient-to-r from-bio-cyan/20 to-bio-cyan shadow-[0_0_10px_#00d4ff]"
              />
           </div>
         </NeuralCard>

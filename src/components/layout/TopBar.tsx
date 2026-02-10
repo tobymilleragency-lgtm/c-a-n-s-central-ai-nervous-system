@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BrainCircuit, Cpu, Mail, Calendar, Info, Zap } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { ConnectedService } from "../../../worker/types";
@@ -6,22 +6,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 export function TopBar() {
   const [services, setServices] = useState<ConnectedService[]>([]);
-  useEffect(() => {
-    const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
+    try {
       const status = await chatService.getServiceStatus();
-      setServices(status);
-    };
+      setServices(Array.isArray(status) ? status : []);
+    } catch (error) {
+      console.error("TopBar sync failed:", error);
+    }
+  }, []);
+  useEffect(() => {
     fetchStatus();
     const interval = setInterval(fetchStatus, 30000);
-    const handleAuth = () => fetchStatus();
-    window.addEventListener('message', (e) => {
-      if (e.data?.type === 'AUTH_SUCCESS') handleAuth();
-    });
+    const handleAuth = (e: MessageEvent) => {
+      if (e.data?.type === 'AUTH_SUCCESS') {
+        fetchStatus();
+      }
+    };
+    window.addEventListener('message', handleAuth);
     return () => {
       clearInterval(interval);
       window.removeEventListener('message', handleAuth);
     };
-  }, []);
+  }, [fetchStatus]);
   const getStatus = (name: string) => services.find(s => s.name === name);
   return (
     <TooltipProvider>
