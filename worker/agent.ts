@@ -5,13 +5,14 @@ import { ChatHandler } from './chat';
 import { API_RESPONSES } from './config';
 import { createMessage, createStreamResponse, createEncoder } from './utils';
 import { getAppController } from './core-utils';
+import { fetchGmailMessages } from './tools';
 export class ChatAgent extends Agent<Env, ChatState> {
   private chatHandler?: ChatHandler;
   initialState: ChatState = {
     messages: [],
     sessionId: '',
     isProcessing: false,
-    model: 'google-ai-studio/gemini-2.5-flash'
+    model: 'google-ai-studio/gemini-2.0-flash'
   };
   async onStart(): Promise<void> {
     this.state.sessionId = this.name;
@@ -25,7 +26,8 @@ export class ChatAgent extends Agent<Env, ChatState> {
     this.chatHandler = new ChatHandler(
       this.env.CF_AI_BASE_URL,
       this.env.CF_AI_API_KEY,
-      this.state.model
+      this.state.model,
+      this.env
     );
   }
   async onRequest(request: Request): Promise<Response> {
@@ -35,11 +37,16 @@ export class ChatAgent extends Agent<Env, ChatState> {
       if (method === 'GET' && url.pathname === '/messages') {
         return Response.json({ success: true, data: this.state });
       }
+      if (method === 'GET' && url.pathname === '/emails') {
+        const emails = await fetchGmailMessages(this.state.sessionId, 10);
+        return Response.json({ success: true, data: emails });
+      }
       if (method === 'POST' && url.pathname === '/chat') {
         return this.handleChatMessage(await request.json());
       }
       return Response.json({ success: false, error: API_RESPONSES.NOT_FOUND }, { status: 404 });
     } catch (error) {
+      console.error('Agent onRequest error:', error);
       return Response.json({ success: false, error: API_RESPONSES.INTERNAL_ERROR }, { status: 500 });
     }
   }
@@ -68,6 +75,7 @@ export class ChatAgent extends Agent<Env, ChatState> {
             const response = await this.chatHandler!.processMessage(
               message,
               this.state.messages,
+              this.state.sessionId,
               (chunk: string) => {
                 fullContent += chunk;
                 writer.write(encoder.encode(chunk));
@@ -80,13 +88,15 @@ export class ChatAgent extends Agent<Env, ChatState> {
               messages: [...this.state.messages, assistantMsg],
               isProcessing: false
             });
+          } catch (err) {
+            console.error('Streaming error:', err);
           } finally {
             writer.close();
           }
         })();
         return createStreamResponse(readable);
       }
-      const response = await this.chatHandler!.processMessage(message, this.state.messages);
+      const response = await this.chatHandler!.processMessage(message, this.state.messages, this.state.sessionId);
       const assistantMsg = createMessage('assistant', response.content, response.toolCalls);
       await controller.saveMessage(this.state.sessionId, assistantMsg);
       this.setState({
@@ -96,6 +106,7 @@ export class ChatAgent extends Agent<Env, ChatState> {
       });
       return Response.json({ success: true, data: this.state });
     } catch (error) {
+      console.error('Chat processing error:', error);
       this.setState({ ...this.state, isProcessing: false });
       return Response.json({ success: false, error: API_RESPONSES.PROCESSING_ERROR }, { status: 500 });
     }

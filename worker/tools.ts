@@ -78,14 +78,14 @@ export async function getToolDefinitions() {
   const mcpTools = await mcpManager.getToolDefinitions();
   return [...customTools, ...mcpTools];
 }
-async function fetchGmailMessages(sessionId: string, count: number = 5): Promise<GmailMessage[] | { error: string }> {
+export async function fetchGmailMessages(sessionId: string, count: number = 5): Promise<GmailMessage[] | { error: string }> {
     return [
         { id: '1', threadId: 't1', sender: 'Neural Arch <system@cans.io>', subject: 'Synaptic Protocol Update', date: '2 mins ago', snippet: 'The bridge between your cortex and Gmail has been established.' },
         { id: '2', threadId: 't2', sender: 'Marcus Chen <marcus@pioneer.com>', subject: 'Project Phoenix Status', date: '1 hour ago', snippet: 'The temporal mapping is complete.' },
         { id: '3', threadId: 't3', sender: 'Sarah Jenkins <sarah@hr.global>', subject: 'Interview Schedule: AI Reflexes', date: '3 hours ago', snippet: 'I have scheduled three candidates...' }
     ].slice(0, count);
 }
-async function fetchCalendarEvents(sessionId: string, maxResults: number = 5): Promise<any[] | { error: string }> {
+export async function fetchCalendarEvents(sessionId: string, maxResults: number = 5): Promise<any[] | { error: string }> {
   return [
     { title: "Neural Sync: Core Architecture", time: "14:30", type: "Sync" },
     { title: "Security Audit: Immune System", time: "16:00", type: "Security" },
