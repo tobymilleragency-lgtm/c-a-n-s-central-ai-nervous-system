@@ -24,8 +24,61 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     app.get('/api/auth/google', async (c) => {
         const sessionId = c.req.query('sessionId') || 'default';
         const clientId = c.env.GOOGLE_CLIENT_ID || 'MOCK_ID';
-        const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&state=${sessionId}`;
+        const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
+        const scopes = [
+            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/calendar.readonly',
+            'https://www.googleapis.com/auth/userinfo.email'
+        ].join(' ');
+        const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${sessionId}&access_type=offline&prompt=consent`;
         return c.json({ success: true, data: { url } });
+    });
+    app.get('/api/auth/callback', async (c) => {
+        const code = c.req.query('code');
+        const sessionId = c.req.query('state') || 'default';
+        const clientId = c.env.GOOGLE_CLIENT_ID;
+        const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+        const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
+        if (!code) return c.text("Authorization failed: No code provided", 400);
+        try {
+            const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    code,
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    redirect_uri: redirectUri,
+                    grant_type: 'authorization_code'
+                })
+            });
+            const tokens = await tokenResponse.json() as any;
+            if (tokens.error) throw new Error(tokens.error_description || tokens.error);
+            const controller = getAppController(c.env);
+            await controller.saveServiceTokens(sessionId, 'gmail', {
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                expiry_date: Date.now() + (tokens.expires_in * 1000),
+                scopes: tokens.scope?.split(' ') || []
+            });
+            return c.html(`
+                <html>
+                    <body>
+                        <script>
+                            window.opener.postMessage({ type: 'AUTH_SUCCESS', service: 'gmail' }, '*');
+                            window.close();
+                        </script>
+                        <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+                            <h2 style="color: #00d4ff;">Synaptic Link Established</h2>
+                            <p style="color: #666;">Closing connection window...</p>
+                        </div>
+                    </body>
+                </html>
+            `);
+        } catch (error) {
+            console.error("OAuth Error:", error);
+            return c.text(`Authentication error: ${error instanceof Error ? error.message : 'Unknown'}`, 500);
+        }
     });
     app.get('/api/status/services', async (c) => {
         const sessionId = c.req.query('sessionId') || 'default';

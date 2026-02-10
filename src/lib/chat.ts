@@ -24,7 +24,10 @@ class ChatService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, model, stream: !!onChunk }),
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        if (response.status === 401) throw new Error("Auth required");
+        throw new Error(`HTTP ${response.status}`);
+      }
       if (onChunk && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -38,7 +41,8 @@ class ChatService {
       }
       return await response.json();
     } catch (error) {
-      return { success: false, error: 'Failed' };
+      console.error("SendMessage Error:", error);
+      return { success: false, error: error instanceof Error ? error.message : 'Failed' };
     }
   }
   async getMessages(): Promise<ChatResponse> {
@@ -122,11 +126,15 @@ class ChatService {
     localStorage.setItem('cans_session_id', sessionId);
     this.baseUrl = `/api/chat/${sessionId}`;
   }
+  async refreshSystemState(): Promise<void> {
+    // Helper to force re-fetch global status
+    window.dispatchEvent(new CustomEvent('SYSTEM_SYNC_REQUESTED'));
+  }
 }
 export const chatService = new ChatService();
 export const renderToolCall = (toolCall: ToolCall): { label: string; data?: any; type: string } => {
   const result = toolCall.result as any;
-  if (!result) return { label: `⚠️ ${toolCall.name}: No result`, type: 'text' };
+  if (!result) return { label: `⚠️ ${toolCall.name}: Pending Result`, type: 'text' };
   if (result.error) return { label: `❌ Error: ${result.error}`, type: 'error' };
   if (toolCall.name === 'get_emails' && result.emails) {
     return { label: `📧 Retreived ${result.emails.length} Synaptic Comm Nodes`, data: result.emails, type: 'emails' };
@@ -137,5 +145,5 @@ export const renderToolCall = (toolCall: ToolCall): { label: string; data?: any;
   if (toolCall.name === 'schedule_temporal_task' && result.success) {
     return { label: `⚡ Task Scheduled in Timeline`, type: 'write-success' };
   }
-  return { label: `🔧 ${toolCall.name} executed`, type: 'text' };
+  return { label: `🔧 ${toolCall.name} execution complete`, type: 'text' };
 };

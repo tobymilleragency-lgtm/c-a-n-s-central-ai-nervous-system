@@ -39,7 +39,6 @@ export function getMockSignals() {
 }
 export function formatNeuralDate(timestamp: number): string {
   const distance = formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-  // Clean up distance to match T-minus aesthetic
   if (timestamp > Date.now()) {
     return `T-plus ${distance.replace('in ', '')}`;
   }
@@ -47,13 +46,28 @@ export function formatNeuralDate(timestamp: number): string {
 }
 export function getServiceColor(serviceName: string): string {
   const colors: Record<string, string> = {
-    gmail: "#00d4ff", // bio-cyan
-    calendar: "#8b5cf6", // memory-violet
-    system: "#f472b6", // alert-pink
-    mcp: "#10b981", // Emerald
+    gmail: "#00d4ff",
+    calendar: "#8b5cf6",
+    system: "#10b981",
+    mcp: "#10b981",
   };
   return colors[serviceName.toLowerCase()] || "#00d4ff";
 }
 export function generateSynapseID() {
   return `syn-${Math.random().toString(36).substring(2, 9)}`;
+}
+export function calculateDistance(x1: number, y1: number, x2: number, y2: number): number {
+  return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+export function getConnections(nodes: Array<{x: number, y: number, id: number}>, threshold: number): [number, number][] {
+  const connections: [number, number][] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const dist = calculateDistance(nodes[i].x, nodes[i].y, nodes[j].x, nodes[j].y);
+      if (dist < threshold) {
+        connections.push([i, j]);
+      }
+    }
+  }
+  return connections;
 }
