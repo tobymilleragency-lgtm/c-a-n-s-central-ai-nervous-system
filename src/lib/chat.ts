@@ -49,6 +49,24 @@ class ChatService {
       return { success: false, error: 'Failed to load messages' };
     }
   }
+  async listSessions(): Promise<SessionInfo[]> {
+    try {
+      const response = await fetch('/api/sessions');
+      const json = await response.json();
+      return json.success ? json.data : [];
+    } catch (error) {
+      return [];
+    }
+  }
+  async deleteSession(sessionId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+      const json = await response.json();
+      return !!json.success;
+    } catch (error) {
+      return false;
+    }
+  }
   async getAuthUrl(service: string): Promise<string | null> {
     try {
       const res = await fetch(`/api/auth/google?sessionId=${this.sessionId}`);
@@ -80,7 +98,10 @@ export const renderToolCall = (toolCall: ToolCall): { label: string; data?: any;
   if (!result) return { label: `⚠️ ${toolCall.name}: No result`, type: 'text' };
   if (result.error) return { label: `❌ ${toolCall.name}: ${result.error}`, type: 'error' };
   if (toolCall.name === 'get_emails' && result.emails) {
-    return { label: `�� Retrieved ${result.emails.length} emails`, data: result.emails, type: 'emails' };
+    return { label: `📧 Retrieved ${result.emails.length} emails`, data: result.emails, type: 'emails' };
+  }
+  if (toolCall.name === 'get_calendar_events' && result.events) {
+    return { label: `📅 Synced ${result.events.length} temporal nodes`, data: result.events, type: 'calendar' };
   }
   if (toolCall.name === 'get_weather') {
     return { label: `🌤️ Weather: ${result.temperature}°C, ${result.condition}`, type: 'text' };

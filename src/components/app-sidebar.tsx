@@ -1,5 +1,5 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Zap,
   MessageSquare,
@@ -9,7 +9,8 @@ import {
   Cpu,
   ShieldAlert,
   Activity,
-  Settings
+  Settings,
+  Trash2
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,6 +23,8 @@ import {
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { chatService } from "@/lib/chat";
+import { SessionInfo } from "../../worker/types";
 const pathways = [
   { icon: BrainCircuit, label: "Cortex", path: "/", color: "text-bio-cyan" },
   { icon: MessageSquare, label: "Comms", path: "/comms", color: "text-bio-cyan" },
@@ -36,6 +39,29 @@ const clusters = [
 ];
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const currentSessionId = chatService.getSessionId();
+  useEffect(() => {
+    loadSessions();
+  }, [location]);
+  const loadSessions = async () => {
+    const list = await chatService.listSessions();
+    setSessions(list);
+  };
+  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const success = await chatService.deleteSession(id);
+    if (success) {
+      if (id === currentSessionId) {
+        chatService.switchSession(crypto.randomUUID());
+        window.location.reload();
+      } else {
+        loadSessions();
+      }
+    }
+  };
   return (
     <Sidebar className="border-r-0 bg-transparent">
       <SidebarHeader className="p-6">
@@ -82,14 +108,45 @@ export function AppSidebar(): JSX.Element {
           </SidebarMenu>
         </SidebarGroup>
         <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-white/30 text-xs uppercase px-4 mb-2">Neural Memory</SidebarGroupLabel>
+          <SidebarMenu>
+            {sessions.map((session) => (
+              <SidebarMenuItem key={session.id}>
+                <SidebarMenuButton
+                  onClick={() => {
+                    chatService.switchSession(session.id);
+                    window.location.reload();
+                  }}
+                  className={cn(
+                    "text-white/40 hover:text-white hover:bg-white/5 rounded-xl h-10 px-4 mb-1 group",
+                    currentSessionId === session.id && "bg-bio-cyan/5 text-bio-cyan border-l-2 border-bio-cyan"
+                  )}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <Clock size={12} className={currentSessionId === session.id ? "text-bio-cyan" : "text-white/20"} />
+                      <span className="text-xs font-medium truncate">{session.title}</span>
+                    </div>
+                    <Trash2 
+                      size={12} 
+                      className="opacity-0 group-hover:opacity-100 hover:text-alert-pink transition-opacity" 
+                      onClick={(e) => handleDeleteSession(e, session.id)}
+                    />
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+        <SidebarGroup className="mt-4">
           <SidebarGroupLabel className="text-white/30 text-xs uppercase px-4 mb-2">Systems</SidebarGroupLabel>
           <SidebarMenu>
             {clusters.map((item) => {
               const active = location.pathname === item.path;
               return (
                 <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton 
-                    asChild 
+                  <SidebarMenuButton
+                    asChild
                     className={cn(
                       "text-white/40 hover:text-white hover:bg-white/5 rounded-xl h-10 px-4 mb-1",
                       active && "bg-white/10 text-white"

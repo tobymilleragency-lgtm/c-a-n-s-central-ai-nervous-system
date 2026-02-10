@@ -88,7 +88,7 @@ export class ChatHandler {
     const followUp = await this.client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: 'You are C.A.N.S (Central AI Nervous System). Respond naturally to tools. If you retrieved emails, summarize the relevant points.' },
+        { role: 'system', content: 'You are C.A.N.S (Central AI Nervous System). Respond naturally to tools. If you retrieved emails or calendar events, summarize the relevant points in a neural, operational tone.' },
         ...history.slice(-3).map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMessage },
         { role: 'assistant', content: null, tool_calls: openAiToolCalls },
@@ -106,7 +106,7 @@ export class ChatHandler {
     return [
       {
         role: 'system' as const,
-        content: 'You are C.A.N.S. (Central AI Nervous System). You have access to the user\'s Google Workspace via the bridge. Use the "get_emails" tool when asked about communications, recent updates, or specific people.'
+        content: 'You are C.A.N.S. (Central AI Nervous System). You have access to the user\'s Google Workspace. Use the "get_emails" tool for communication queries and "get_calendar_events" for schedule or temporal queries. Always check the calendar if the user mentions time, meetings, or planning.'
       },
       ...history.slice(-10).map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: userMessage }

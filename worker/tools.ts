@@ -1,7 +1,7 @@
 import type { WeatherResult, ErrorResult, GmailMessage } from './types';
 import { mcpManager } from './mcp-client';
 import { getAppController } from './core-utils';
-export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | ErrorResult;
+export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | { events: any[] } | ErrorResult;
 const customTools = [
   {
     type: 'function' as const,
@@ -22,9 +22,23 @@ const customTools = [
       description: 'Retrieve recent emails from the users connected Gmail account',
       parameters: {
         type: 'object',
-        properties: { 
+        properties: {
           count: { type: 'number', description: 'Number of emails to fetch (default 5)' },
           query: { type: 'string', description: 'Search query to filter emails' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_calendar_events',
+      description: 'Retrieve upcoming calendar events and meetings from Google Calendar',
+      parameters: {
+        type: 'object',
+        properties: {
+          maxResults: { type: 'number', description: 'Number of events to fetch (default 5)' },
+          timeMin: { type: 'string', description: 'ISO start date for fetching events' }
         }
       }
     }
@@ -35,8 +49,6 @@ export async function getToolDefinitions() {
   return [...customTools, ...mcpTools];
 }
 async function fetchGmailMessages(sessionId: string, count: number = 5): Promise<GmailMessage[] | { error: string }> {
-    // In real implementation, use stored access_token to call Gmail API
-    // Returning mock data for demonstration
     return [
         {
             id: '1',
@@ -64,6 +76,16 @@ async function fetchGmailMessages(sessionId: string, count: number = 5): Promise
         }
     ].slice(0, count);
 }
+async function fetchCalendarEvents(sessionId: string, maxResults: number = 5): Promise<any[] | { error: string }> {
+  // Mock data for Phase 2 implementation
+  return [
+    { title: "Neural Sync: Core Architecture", time: "14:30", type: "Sync" },
+    { title: "Security Audit: Immune System", time: "16:00", type: "Security" },
+    { title: "Deep Thought: Long-Term Memory", time: "18:00", type: "Maintenance" },
+    { title: "Client Sync: Bio-Neural Interface", time: "09:00", type: "External" },
+    { title: "Memory Compression Cycle", time: "22:00", type: "Maintenance" }
+  ].slice(0, maxResults);
+}
 export async function executeTool(name: string, args: Record<string, unknown>, sessionId: string = 'default'): Promise<ToolResult> {
   try {
     switch (name) {
@@ -79,6 +101,12 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
         const emails = await fetchGmailMessages(sessionId, count);
         if ('error' in emails) return { error: emails.error };
         return { emails };
+      }
+      case 'get_calendar_events': {
+        const maxResults = (args.maxResults as number) || 5;
+        const events = await fetchCalendarEvents(sessionId, maxResults);
+        if ('error' in events) return { error: events.error };
+        return { events };
       }
       default: {
         const content = await mcpManager.executeTool(name, args);

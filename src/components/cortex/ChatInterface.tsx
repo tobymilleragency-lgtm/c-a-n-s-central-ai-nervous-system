@@ -4,7 +4,7 @@ import { Message, GmailMessage } from "../../../worker/types";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Loader2, User, Mail, ChevronRight } from "lucide-react";
+import { Send, Sparkles, Loader2, User, Mail, ChevronRight, Zap, Calendar, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 export function ChatInterface() {
@@ -59,6 +59,27 @@ export function ChatInterface() {
       ))}
     </div>
   );
+  const renderCalendarStack = (events: any[]) => (
+    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {events.map((event, idx) => (
+        <NeuralCard key={idx} className="p-3 bg-memory-violet/5 border-memory-violet/20 hover:border-memory-violet/40 transition-all cursor-pointer">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-memory-violet/10 flex flex-col items-center justify-center text-memory-violet shrink-0 border border-memory-violet/20">
+              <span className="text-[8px] uppercase font-bold">Time</span>
+              <span className="text-xs font-bold">{event.time}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-bold text-white/90 truncate">{event.title}</h4>
+              <div className="flex items-center gap-1 mt-1">
+                <Clock size={10} className="text-white/30" />
+                <span className="text-[9px] text-white/40 uppercase tracking-tight">{event.type || 'Temporal Node'}</span>
+              </div>
+            </div>
+          </div>
+        </NeuralCard>
+      ))}
+    </div>
+  );
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto px-4 py-8">
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-8 pb-32">
@@ -81,11 +102,12 @@ export function ChatInterface() {
                     const toolUI = renderToolCall(tc);
                     return (
                       <div key={tc.id} className="mt-4 pt-4 border-t border-white/5">
-                        <div className="flex items-center gap-2 text-[10px] font-bold text-bio-cyan uppercase">
-                          <Zap size={10} />
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-bio-cyan uppercase mb-2">
+                          <Zap size={10} className="animate-pulse" />
                           {toolUI.label}
                         </div>
                         {toolUI.type === 'emails' && toolUI.data && renderEmailStack(toolUI.data)}
+                        {toolUI.type === 'calendar' && toolUI.data && renderCalendarStack(toolUI.data)}
                       </div>
                     );
                   })}

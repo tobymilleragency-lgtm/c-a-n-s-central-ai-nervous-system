@@ -1,3 +1,4 @@
+import { formatDistanceToNow } from "date-fns";
 export function getMockSignals() {
   return {
     emails: [
@@ -36,6 +37,23 @@ export function getMockSignals() {
     ]
   };
 }
+export function formatNeuralDate(timestamp: number): string {
+  const distance = formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+  // Clean up distance to match T-minus aesthetic
+  if (timestamp > Date.now()) {
+    return `T-plus ${distance.replace('in ', '')}`;
+  }
+  return distance.replace('about ', '').replace('less than ', '');
+}
+export function getServiceColor(serviceName: string): string {
+  const colors: Record<string, string> = {
+    gmail: "#00d4ff", // bio-cyan
+    calendar: "#8b5cf6", // memory-violet
+    system: "#f472b6", // alert-pink
+    mcp: "#10b981", // Emerald
+  };
+  return colors[serviceName.toLowerCase()] || "#00d4ff";
+}
 export function generateSynapseID() {
-  return `syn-${Math.random().toString(36).substr(2, 9)}`;
+  return `syn-${Math.random().toString(36).substring(2, 9)}`;
 }
