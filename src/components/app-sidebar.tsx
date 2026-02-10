@@ -1,73 +1,107 @@
-/* This is a demo sidebar. **COMPULSORY** Edit this file to customize the sidebar OR remove it from appLayout OR don't use appLayout at all */
 import React from "react";
-import { Home, Layers, Compass, Star, Settings, LifeBuoy } from "lucide-react";
+import { 
+  Zap, 
+  MessageSquare, 
+  Database, 
+  BrainCircuit, 
+  Clock, 
+  Cpu, 
+  ShieldAlert,
+  Activity
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
   SidebarHeader,
-  SidebarSeparator,
-  SidebarInput,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuAction,
-  SidebarMenuBadge,
+  SidebarGroup,
+  SidebarGroupLabel,
 } from "@/components/ui/sidebar";
-
+import { cn } from "@/lib/utils";
+const pathways = [
+  { icon: BrainCircuit, label: "Cortex", active: true, color: "text-bio-cyan" },
+  { icon: MessageSquare, label: "Comms", color: "text-bio-cyan" },
+  { icon: Database, label: "Knowledge", color: "text-memory-violet" },
+  { icon: Clock, label: "Temporal", color: "text-memory-violet" },
+  { icon: Activity, label: "Reflexes", color: "text-alert-pink" },
+];
+const clusters = [
+  { icon: Zap, label: "Nerve Clusters" },
+  { icon: Cpu, label: "Logic Core" },
+  { icon: ShieldAlert, label: "Immune System" },
+];
 export function AppSidebar(): JSX.Element {
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1">
-          <div className="h-6 w-6 rounded-md bg-gradient-to-br from-indigo-500 to-purple-500" />
-          <span className="text-sm font-medium">Demo Sidebar</span>
+    <Sidebar className="border-r-0 bg-transparent">
+      <SidebarHeader className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="absolute inset-0 bg-bio-cyan blur-md opacity-20 animate-neural-pulse" />
+            <div className="h-10 w-10 rounded-full border border-bio-cyan/30 flex items-center justify-center bg-neural-bg relative z-10">
+              <BrainCircuit className="text-bio-cyan w-6 h-6" />
+            </div>
+          </div>
+          <div>
+            <h1 className="font-bold text-lg tracking-tight text-foreground">C.A.N.S.</h1>
+            <p className="text-[10px] uppercase tracking-widest text-bio-cyan/60 font-medium">Neural OS v1.0</p>
+          </div>
         </div>
-        <SidebarInput placeholder="Search" />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="px-4">
         <SidebarGroup>
+          <SidebarGroupLabel className="text-white/30 text-xs uppercase px-4 mb-2">Primary Pathways</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive>
-                <a href="#"><Home /> <span>Home</span></a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Layers /> <span>Projects</span></a>
-              </SidebarMenuButton>
-              <SidebarMenuAction>
-                <Star className="size-4" />
-              </SidebarMenuAction>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Compass /> <span>Explore</span></a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {pathways.map((item) => (
+              <SidebarMenuItem key={item.label}>
+                <SidebarMenuButton 
+                  asChild 
+                  isActive={item.active}
+                  className={cn(
+                    "group relative h-12 rounded-xl transition-all duration-300 px-4",
+                    item.active ? "bg-bio-cyan/10 text-bio-cyan border border-bio-cyan/20" : "text-white/50 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  <a href="#" className="flex items-center gap-4">
+                    <item.icon className={cn("w-5 h-5", item.active ? "text-bio-cyan" : "group-hover:text-bio-cyan/70")} />
+                    <span className="font-medium text-sm">{item.label}</span>
+                    {item.active && (
+                      <div className="absolute left-0 w-1 h-6 bg-bio-cyan rounded-r-full shadow-[0_0_10px_rgba(0,212,255,0.8)]" />
+                    )}
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Quick Links</SidebarGroupLabel>
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-white/30 text-xs uppercase px-4 mb-2">Systems</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Star /> <span>Starred</span></a>
-              </SidebarMenuButton>
-              <SidebarMenuBadge>5</SidebarMenuBadge>
-            </SidebarMenuItem>
+            {clusters.map((item) => (
+              <SidebarMenuItem key={item.label}>
+                <SidebarMenuButton asChild className="text-white/40 hover:text-white hover:bg-white/5 rounded-xl h-10 px-4">
+                  <a href="#" className="flex items-center gap-4">
+                    <item.icon className="w-4 h-4" />
+                    <span className="text-xs font-medium">{item.label}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="px-2 text-xs text-muted-foreground">A simple shadcn sidebar</div>
-      </SidebarFooter>
+      <div className="p-6 mt-auto">
+        <div className="neural-glass p-3 rounded-xl border-white/5 bg-white/5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-white/40 uppercase">Load</span>
+            <span className="text-[10px] text-bio-cyan">14%</span>
+          </div>
+          <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+            <div className="h-full bg-bio-cyan w-[14%] shadow-[0_0_10px_rgba(0,212,255,0.5)]" />
+          </div>
+        </div>
+      </div>
     </Sidebar>
   );
 }
