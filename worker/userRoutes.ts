@@ -44,11 +44,25 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         const tasks = await controller.listTasks(sessionId);
         return c.json({ success: true, data: tasks });
     });
+    app.post('/api/tasks/:taskId/status', async (c) => {
+        const taskId = c.req.param('taskId');
+        const { status, sessionId } = await c.req.json();
+        const controller = getAppController(c.env);
+        await controller.updateTaskStatus(sessionId || 'default', taskId, status);
+        return c.json({ success: true });
+    });
     app.get('/api/memories', async (c) => {
         const sessionId = c.req.query('sessionId') || 'default';
         const controller = getAppController(c.env);
         const memories = await controller.listMemories(sessionId);
         return c.json({ success: true, data: memories });
+    });
+    app.delete('/api/memories/:memoryId', async (c) => {
+        const memoryId = c.req.param('memoryId');
+        const sessionId = c.req.query('sessionId') || 'default';
+        const controller = getAppController(c.env);
+        await controller.deleteMemory(sessionId, memoryId);
+        return c.json({ success: true });
     });
     app.post('/api/sessions', async (c) => {
         const body = await c.req.json().catch(() => ({}));

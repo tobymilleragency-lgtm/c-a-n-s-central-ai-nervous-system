@@ -4,7 +4,7 @@ import { Message, GmailMessage } from "../../../worker/types";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Loader2, User, Mail, ChevronRight, Zap, Calendar, Clock, ChevronDown, ChevronUp, Reply, Trash2 } from "lucide-react";
+import { Send, Sparkles, Loader2, User, Mail, ChevronRight, Zap, Calendar, Clock, ChevronDown, ChevronUp, Reply, Trash2, BrainCircuit, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
@@ -15,15 +15,10 @@ export function ChatInterface() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const getContextName = () => {
-    if (location.pathname === '/') return 'CORE CORTEX';
-    if (location.pathname === '/comms') return 'COMMS BRIDGE';
-    if (location.pathname === '/knowledge') return 'KNOWLEDGE VAULT';
-    if (location.pathname === '/temporal') return 'TEMPORAL SYNC';
-    return 'SYSTEM';
+    const paths: Record<string, string> = { '/': 'CORE CORTEX', '/comms': 'COMMS BRIDGE', '/knowledge': 'KNOWLEDGE VAULT', '/temporal': 'TEMPORAL SYNC' };
+    return paths[location.pathname] || 'SYSTEM';
   };
-  useEffect(() => {
-    loadMessages();
-  }, [location]);
+  useEffect(() => { loadMessages(); }, [location]);
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -31,69 +26,34 @@ export function ChatInterface() {
   }, [messages, isLoading]);
   const loadMessages = async () => {
     const res = await chatService.getMessages();
-    if (res.success && res.data) {
-      setMessages(res.data.messages);
-    }
+    if (res.success && res.data) setMessages(res.data.messages);
   };
-  const handleSend = async (customText?: string) => {
-    const text = customText || input;
-    if (!text.trim() || isLoading) return;
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+    const text = input;
     setInput("");
     setIsLoading(true);
     const res = await chatService.sendMessage(text);
     if (res.success) await loadMessages();
     setIsLoading(false);
   };
-  const handleClear = async () => {
-    if (confirm("Initiate memory flush? This will prune the current synaptic history.")) {
-      const id = chatService.getSessionId();
-      await chatService.deleteSession(id);
-      chatService.switchSession(crypto.randomUUID());
-      window.location.reload();
-    }
-  };
-  const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
+  const [expandedTool, setExpandedTool] = useState<string | null>(null);
   const renderEmailStack = (emails: GmailMessage[]) => (
     <div className="mt-4 space-y-3">
-      {emails.map((email) => {
-        const isExpanded = expandedEmail === email.id;
-        return (
-          <NeuralCard key={email.id} className="p-3 bg-white/5 border-white/10 hover:border-bio-cyan/30 transition-all group">
-            <div className="flex items-start gap-3 cursor-pointer" onClick={() => setExpandedEmail(isExpanded ? null : email.id)}>
-              <div className="w-8 h-8 rounded-full bg-bio-cyan/10 flex items-center justify-center text-bio-cyan shrink-0">
-                <Mail size={14} />
+      {emails.map((email) => (
+        <NeuralCard key={email.id} className="p-3 bg-white/5 border-white/10 hover:border-bio-cyan/30 transition-all">
+          <div className="flex items-start gap-3">
+            <Mail size={12} className="text-bio-cyan mt-1" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                 <span className="text-[9px] font-bold text-bio-cyan uppercase truncate">{email.sender}</span>
+                 <span className="text-[8px] text-white/20">{email.date}</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-bio-cyan uppercase">{email.sender}</span>
-                  <span className="text-[10px] text-white/30 font-mono">{email.date}</span>
-                </div>
-                <h4 className="text-xs font-semibold text-white/90 truncate mb-1">{email.subject}</h4>
-                <p className="text-[11px] text-white/50 line-clamp-1">{email.snippet}</p>
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                      <div className="pt-4 mt-4 border-t border-white/5 text-[11px] text-white/70 leading-relaxed whitespace-pre-wrap">
-                        {email.body || "No additional content available."}
-                        <div className="mt-4 flex gap-2">
-                          <Button size="sm" variant="outline" className="h-8 text-[10px] border-bio-cyan/20 text-bio-cyan hover:bg-bio-cyan/10" onClick={(e) => {
-                            e.stopPropagation();
-                            setInput(`Draft a reply to this email from ${email.sender} about ${email.subject}: `);
-                          }}>
-                            <Reply size={12} className="mr-2" />
-                            Draft Reply
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              {isExpanded ? <ChevronUp size={14} className="text-bio-cyan mt-1" /> : <ChevronDown size={14} className="text-white/20 mt-1" />}
+              <h4 className="text-[10px] font-bold text-white/90 truncate">{email.subject}</h4>
             </div>
-          </NeuralCard>
-        );
-      })}
+          </div>
+        </NeuralCard>
+      ))}
     </div>
   );
   return (
@@ -103,20 +63,17 @@ export function ChatInterface() {
            <div className="h-1.5 w-1.5 rounded-full bg-bio-cyan animate-pulse" />
            <span className="text-[9px] font-black tracking-widest text-bio-cyan/80 uppercase">{getContextName()}</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleClear} className="h-7 text-[9px] text-white/20 hover:text-alert-pink font-bold uppercase tracking-widest">
-          <Trash2 size={10} className="mr-1" /> Flush
+        <Button variant="ghost" size="sm" onClick={() => window.location.reload()} className="h-7 text-[9px] text-white/20 hover:text-bio-cyan">
+          RE-SYNC
         </Button>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-8 pb-32 pt-12 no-scrollbar">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-10 pb-32 pt-12 no-scrollbar">
         {messages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-40">
-            <div className="relative">
-              <div className="absolute inset-0 bg-bio-cyan blur-2xl opacity-20 animate-pulse" />
-              <BrainCircuitIcon className="text-bio-cyan w-16 h-16 relative z-10" />
-            </div>
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-40 py-20">
+            <BrainCircuit className="text-bio-cyan w-16 h-16 animate-neural-pulse" />
             <div>
               <p className="text-xs uppercase tracking-[0.4em] font-bold text-bio-cyan">Cortex Online</p>
-              <p className="text-[10px] text-white/40 mt-2 font-mono uppercase">Awaiting synaptic transmission...</p>
+              <p className="text-[10px] text-white/40 mt-2 font-mono uppercase">System initialized. Awaiting synaptic data.</p>
             </div>
           </div>
         )}
@@ -130,13 +87,32 @@ export function ChatInterface() {
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 {msg.toolCalls?.map(tc => {
                   const toolUI = renderToolCall(tc);
+                  const isWrite = toolUI.type === 'write-success';
                   return (
-                    <div key={tc.id} className="mt-4 pt-4 border-t border-white/5">
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-bio-cyan uppercase mb-2">
-                        <Zap size={10} className="animate-pulse" />
+                    <div key={tc.id} className={cn("mt-4 pt-4 border-t border-white/5", isWrite && "animate-synaptic-fire rounded-lg px-2")}>
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-bio-cyan uppercase">
+                        {isWrite ? <CheckCircle size={10} className="text-bio-cyan" /> : <Zap size={10} className="animate-pulse" />}
                         {toolUI.label}
                       </div>
-                      {toolUI.type === 'emails' && toolUI.data && renderEmailStack(toolUI.data)}
+                      {toolUI.type === 'emails' && toolUI.data && (
+                        <div className="mt-2">
+                           <Button 
+                             variant="ghost" 
+                             size="sm" 
+                             onClick={() => setExpandedTool(expandedTool === tc.id ? null : tc.id)}
+                             className="h-6 text-[9px] p-0 text-white/40 hover:text-white"
+                           >
+                             {expandedTool === tc.id ? 'Hide Data' : `Show ${toolUI.data.length} Nodes`}
+                           </Button>
+                           <AnimatePresence>
+                             {expandedTool === tc.id && (
+                               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+                                 {renderEmailStack(toolUI.data)}
+                               </motion.div>
+                             )}
+                           </AnimatePresence>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -158,19 +134,20 @@ export function ChatInterface() {
       <div className="fixed bottom-8 left-0 right-0 lg:left-[260px] lg:right-[320px] px-8 z-50">
         <div className="max-w-4xl mx-auto relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-bio-cyan to-memory-violet rounded-2xl blur opacity-20 group-focus-within:opacity-50 transition duration-500" />
-          <NeuralCard className="relative p-1 pr-2 flex items-center gap-2 bg-neural-bg/90 border-white/5 focus-within:border-bio-cyan/30 focus-within:animate-synaptic-fire">
-            <Input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Transmit synaptic query..." className="border-0 bg-transparent focus-visible:ring-0 text-white placeholder:text-white/10 h-14 text-sm tracking-wide" />
-            <Button onClick={() => handleSend()} disabled={isLoading || !input.trim()} size="icon" className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 rounded-xl w-10 h-10 transition-all active:scale-95 shadow-[0_0_15px_rgba(0,212,255,0.4)]">
+          <NeuralCard className="relative p-1 pr-2 flex items-center gap-2 bg-neural-bg/90 border-white/5 focus-within:border-bio-cyan/30">
+            <Input 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()} 
+              placeholder="Transmit synaptic query..." 
+              className="border-0 bg-transparent focus-visible:ring-0 text-white placeholder:text-white/10 h-14 text-sm tracking-wide" 
+            />
+            <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="icon" className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 rounded-xl w-10 h-10 transition-all active:scale-95 shadow-[0_0_15px_rgba(0,212,255,0.4)]">
               <Send size={18} />
             </Button>
           </NeuralCard>
         </div>
       </div>
     </div>
-  );
-}
-function BrainCircuitIcon(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5a2.5 2.5 0 0 0-4.96-.46 2.5 2.5 0 0 0-1.98 3 2.5 2.5 0 0 0 .3 4.96 2.5 2.5 0 0 0 3.32 1.45 2.5 2.5 0 0 0 3.32-1.45 2.5 2.5 0 0 0 .3-4.96 2.5 2.5 0 0 0-1.98-3 2.5 2.5 0 0 0-4.96.46"/><path d="M15 8h5"/><path d="M15 12h5"/><path d="M15 16h5"/><path d="M8 16h.01"/><path d="M8 20h.01"/><path d="M12 18h.01"/><path d="M12 22h.01"/></svg>
   );
 }

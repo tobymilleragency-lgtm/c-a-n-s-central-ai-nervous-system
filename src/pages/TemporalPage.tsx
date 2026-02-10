@@ -1,28 +1,36 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Clock, Calendar, CheckCircle2, Circle, AlertCircle, Zap } from "lucide-react";
+import { Clock, CheckCircle2, AlertCircle, Zap, Loader2 } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { cn } from "@/lib/utils";
 export function TemporalPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    loadTasks();
-  }, []);
-  const loadTasks = async () => {
-    setLoading(true);
+  const loadTasks = useCallback(async () => {
     const data = await chatService.getTasks();
     setTasks(data);
     setLoading(false);
-  };
+  }, []);
+  useEffect(() => {
+    loadTasks();
+    // Refresh on focus
+    const handleFocus = () => loadTasks();
+    window.addEventListener('focus', handleFocus);
+    // Polling
+    const interval = setInterval(loadTasks, 30000);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [loadTasks]);
   const handleToggleTask = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
     const success = await chatService.updateTaskStatus(taskId, newStatus);
     if (success) {
-      setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     }
   };
   const completedCount = tasks.filter(t => t.status === 'completed').length;
@@ -51,23 +59,27 @@ export function TemporalPage() {
               <Progress value={progress} className="h-1.5 bg-white/5" />
             </NeuralCard>
             <div className="space-y-4">
-              <h3 className="text-[10px] uppercase font-bold tracking-widest text-white/20 px-2">Pending Execution</h3>
-              {tasks.length === 0 && !loading ? (
+              <h3 className="text-[10px] uppercase font-bold tracking-widest text-white/20 px-2">Synaptic Load</h3>
+              {loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 text-memory-violet animate-spin" />
+                </div>
+              ) : tasks.length === 0 ? (
                 <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-2xl">
                   <CheckCircle2 size={40} className="mx-auto mb-4 text-white/10" />
-                  <p className="text-white/30 uppercase text-xs tracking-widest font-bold">All Synapses Fired</p>
+                  <p className="text-white/30 uppercase text-xs tracking-widest font-bold">Timeline Clear</p>
                 </div>
               ) : (
                 tasks.map((task) => (
-                  <NeuralCard 
-                    key={task.id} 
+                  <NeuralCard
+                    key={task.id}
                     className={cn(
                       "p-5 flex items-center gap-4 transition-all duration-500",
-                      task.status === 'completed' ? "opacity-40 grayscale" : "opacity-100"
+                      task.status === 'completed' ? "opacity-40" : "opacity-100 border-memory-violet/10"
                     )}
                   >
-                    <Checkbox 
-                      checked={task.status === 'completed'} 
+                    <Checkbox
+                      checked={task.status === 'completed'}
                       onCheckedChange={() => handleToggleTask(task.id, task.status)}
                       className="h-5 w-5 rounded-full border-memory-violet/40 data-[state=checked]:bg-memory-violet data-[state=checked]:border-memory-violet"
                     />
@@ -79,11 +91,11 @@ export function TemporalPage() {
                         {task.title}
                       </p>
                       <span className="text-[9px] font-mono text-white/20 uppercase mt-1 block">
-                        CREATED: {new Date(task.createdAt).toLocaleTimeString()}
+                        SEQ-ID: {task.id.split('-')[0]} // T-{new Date(task.createdAt).toLocaleTimeString()}
                       </span>
                     </div>
                     {task.status !== 'completed' && (
-                      <Zap size={14} className="text-memory-violet animate-pulse" />
+                      <Zap size={14} className="text-memory-violet animate-pulse shrink-0" />
                     )}
                   </NeuralCard>
                 ))
@@ -93,31 +105,29 @@ export function TemporalPage() {
           {/* Temporal Sidebar */}
           <div className="space-y-8">
              <section>
-              <h3 className="text-[10px] uppercase font-bold tracking-widest text-white/20 mb-4 px-2">Calendar Bridge</h3>
-              <NeuralCard className="p-6 space-y-4">
-                {[
-                  { time: '14:30', title: 'Neural Sync meeting', active: true },
-                  { time: '16:00', title: 'Deep Learning Batch', active: false },
-                  { time: '18:00', title: 'Memory Pruning', active: false },
-                ].map((ev, i) => (
-                  <div key={i} className="flex gap-4 items-start">
-                    <span className={cn("text-[10px] font-bold shrink-0 mt-0.5", ev.active ? "text-bio-cyan" : "text-white/20")}>
-                      {ev.time}
-                    </span>
-                    <p className="text-xs text-white/70">{ev.title}</p>
-                  </div>
-                ))}
-              </NeuralCard>
-            </section>
-            <section>
               <h3 className="text-[10px] uppercase font-bold tracking-widest text-white/20 mb-4 px-2">System Health</h3>
               <NeuralCard className="p-6 bg-alert-pink/5 border-alert-pink/10">
                 <div className="flex gap-3">
                   <AlertCircle size={16} className="text-alert-pink shrink-0" />
                   <div>
-                    <p className="text-[10px] font-black text-alert-pink uppercase">Buffer Alert</p>
-                    <p className="text-[10px] text-white/60 leading-tight mt-1">High synaptic density detected in temporal window T+4.</p>
+                    <p className="text-[10px] font-black text-alert-pink uppercase">Density Alert</p>
+                    <p className="text-[10px] text-white/60 leading-tight mt-1">High synaptic density detected. Optimizing temporal buffers.</p>
                   </div>
+                </div>
+              </NeuralCard>
+            </section>
+            <section>
+              <NeuralCard className="p-6 border-white/5 bg-[#0a0e1a]/40">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Temporal Stats</h4>
+                <div className="space-y-3">
+                   <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-white/40">TOTAL NODES</span>
+                      <span className="text-white font-mono">{tasks.length}</span>
+                   </div>
+                   <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-white/40">PROCESSED</span>
+                      <span className="text-bio-cyan font-mono">{completedCount}</span>
+                   </div>
                 </div>
               </NeuralCard>
             </section>

@@ -1,7 +1,7 @@
 import type { WeatherResult, ErrorResult, GmailMessage } from './types';
 import { mcpManager } from './mcp-client';
 import { getAppController } from './core-utils';
-export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | { events: any[] } | ErrorResult;
+export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | { events: any[] } | { success: boolean, id?: string } | ErrorResult;
 const customTools = [
   {
     type: 'function' as const,
@@ -42,6 +42,36 @@ const customTools = [
         }
       }
     }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'store_knowledge_node',
+      description: 'Commit a significant piece of information to long-term synaptic memory',
+      parameters: {
+        type: 'object',
+        properties: {
+          content: { type: 'string', description: 'The information to be remembered' },
+          category: { type: 'string', enum: ['Personal', 'Project', 'Global'], description: 'Category of knowledge' }
+        },
+        required: ['content', 'category']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'schedule_temporal_task',
+      description: 'Schedule a new task or follow-up in the system timeline',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'The task description' },
+          priority: { type: 'string', enum: ['low', 'medium', 'high'], default: 'medium' }
+        },
+        required: ['title']
+      }
+    }
   }
 ];
 export async function getToolDefinitions() {
@@ -50,44 +80,21 @@ export async function getToolDefinitions() {
 }
 async function fetchGmailMessages(sessionId: string, count: number = 5): Promise<GmailMessage[] | { error: string }> {
     return [
-        {
-            id: '1',
-            threadId: 't1',
-            sender: 'Neural Arch <system@cans.io>',
-            subject: 'Synaptic Protocol Update',
-            date: '2 mins ago',
-            snippet: 'The bridge between your cortex and Gmail has been established. This is a confirmation of...'
-        },
-        {
-            id: '2',
-            threadId: 't2',
-            sender: 'Marcus Chen <marcus@pioneer.com>',
-            subject: 'Project Phoenix Status',
-            date: '1 hour ago',
-            snippet: 'The temporal mapping is complete. We need to review the neural load balance tomorrow...'
-        },
-        {
-            id: '3',
-            threadId: 't3',
-            sender: 'Sarah Jenkins <sarah@hr.global>',
-            subject: 'Interview Schedule: AI Reflexes',
-            date: '3 hours ago',
-            snippet: 'I have scheduled three candidates for the Reflex System Engineer position starting...'
-        }
+        { id: '1', threadId: 't1', sender: 'Neural Arch <system@cans.io>', subject: 'Synaptic Protocol Update', date: '2 mins ago', snippet: 'The bridge between your cortex and Gmail has been established.' },
+        { id: '2', threadId: 't2', sender: 'Marcus Chen <marcus@pioneer.com>', subject: 'Project Phoenix Status', date: '1 hour ago', snippet: 'The temporal mapping is complete.' },
+        { id: '3', threadId: 't3', sender: 'Sarah Jenkins <sarah@hr.global>', subject: 'Interview Schedule: AI Reflexes', date: '3 hours ago', snippet: 'I have scheduled three candidates...' }
     ].slice(0, count);
 }
 async function fetchCalendarEvents(sessionId: string, maxResults: number = 5): Promise<any[] | { error: string }> {
-  // Mock data for Phase 2 implementation
   return [
     { title: "Neural Sync: Core Architecture", time: "14:30", type: "Sync" },
     { title: "Security Audit: Immune System", time: "16:00", type: "Security" },
-    { title: "Deep Thought: Long-Term Memory", time: "18:00", type: "Maintenance" },
-    { title: "Client Sync: Bio-Neural Interface", time: "09:00", type: "External" },
-    { title: "Memory Compression Cycle", time: "22:00", type: "Maintenance" }
+    { title: "Deep Thought: Long-Term Memory", time: "18:00", type: "Maintenance" }
   ].slice(0, maxResults);
 }
-export async function executeTool(name: string, args: Record<string, unknown>, sessionId: string = 'default'): Promise<ToolResult> {
+export async function executeTool(name: string, args: Record<string, unknown>, sessionId: string = 'default', env: any): Promise<ToolResult> {
   try {
+    const controller = getAppController(env);
     switch (name) {
       case 'get_weather':
         return {
@@ -107,6 +114,20 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
         const events = await fetchCalendarEvents(sessionId, maxResults);
         if ('error' in events) return { error: events.error };
         return { events };
+      }
+      case 'store_knowledge_node': {
+        await controller.addMemory(sessionId, {
+          content: args.content as string,
+          category: args.category as string
+        });
+        return { success: true };
+      }
+      case 'schedule_temporal_task': {
+        await controller.createTask(sessionId, {
+          title: args.title as string,
+          status: 'pending'
+        });
+        return { success: true };
       }
       default: {
         const content = await mcpManager.executeTool(name, args);

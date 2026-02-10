@@ -84,6 +84,13 @@ class ChatService {
       return json.success ? json.data : [];
     } catch { return []; }
   }
+  async deleteMemory(memoryId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/memories/${memoryId}?sessionId=${this.sessionId}`, { method: 'DELETE' });
+      const json = await res.json();
+      return !!json.success;
+    } catch { return false; }
+  }
   async getTasks(): Promise<any[]> {
     try {
       const res = await fetch(`/api/tasks?sessionId=${this.sessionId}`);
@@ -120,9 +127,15 @@ export const chatService = new ChatService();
 export const renderToolCall = (toolCall: ToolCall): { label: string; data?: any; type: string } => {
   const result = toolCall.result as any;
   if (!result) return { label: `⚠️ ${toolCall.name}: No result`, type: 'text' };
-  if (result.error) return { label: `❌ Error`, type: 'error' };
+  if (result.error) return { label: `❌ Error: ${result.error}`, type: 'error' };
   if (toolCall.name === 'get_emails' && result.emails) {
     return { label: `📧 Retreived ${result.emails.length} Synaptic Comm Nodes`, data: result.emails, type: 'emails' };
+  }
+  if (toolCall.name === 'store_knowledge_node' && result.success) {
+    return { label: `🧠 Knowledge Indexed Successfully`, type: 'write-success' };
+  }
+  if (toolCall.name === 'schedule_temporal_task' && result.success) {
+    return { label: `⚡ Task Scheduled in Timeline`, type: 'write-success' };
   }
   return { label: `🔧 ${toolCall.name} executed`, type: 'text' };
 };
