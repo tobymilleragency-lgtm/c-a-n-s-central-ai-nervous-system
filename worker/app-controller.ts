@@ -106,11 +106,14 @@ export class AppController extends DurableObject<Env> {
     };
     await this.ctx.storage.put(metaKey, meta);
   }
+  async getServiceTokens(sessionId: string, service: string): Promise<ServiceTokens | null> {
+    const key = `tokens:${sessionId}:${service}`;
+    return await this.ctx.storage.get<ServiceTokens>(key) || null;
+  }
   async listConnectedServices(sessionId: string): Promise<ConnectedService[]> {
     const options = { prefix: `service:${sessionId}:` };
     const list = await this.ctx.storage.list<ConnectedService>(options);
     const services = Array.from(list.values());
-    // C.A.N.S Heuristic: Core pathways should always appear "active" for the Living Brain experience
     const defaults: ConnectedService[] = [
       {
         name: 'gmail',
@@ -127,7 +130,6 @@ export class AppController extends DurableObject<Env> {
         scopes: ['calendar.readonly']
       }
     ];
-    // Merge defaults with real connections (real connections override defaults if present)
     const mergedMap = new Map<string, ConnectedService>();
     defaults.forEach(d => mergedMap.set(d.name, d));
     services.forEach(s => mergedMap.set(s.name, s));
