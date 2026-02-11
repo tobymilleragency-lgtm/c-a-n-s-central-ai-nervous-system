@@ -40,7 +40,7 @@ export function PeripheralPanel() {
   }, [fetchData, activeAccount]);
   const isGmailConnected = useMemo(() => services.some(s => s.name === 'google' && s.status === 'active'), [services]);
   return (
-    <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar min-w-0">
+    <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar min-w-0 overflow-hidden">
       {/* Node Selector */}
       <section className="min-w-0">
         <DropdownMenu>
@@ -83,8 +83,9 @@ export function PeripheralPanel() {
           </h3>
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
-        <div className="h-32 min-h-[128px] w-full opacity-80 relative min-w-0">
-          <ResponsiveContainer width="100%" height="100%" aspect={3}>
+        {/* Recharts warning fix: Added min-w-0, min-h-[120px], and debounce to ResponsiveContainer */}
+        <div className="h-32 min-h-[120px] w-full opacity-80 relative min-w-0 overflow-hidden">
+          <ResponsiveContainer width="100%" height="100%" aspect={2.5} debounce={50}>
             <AreaChart data={telemetry} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
@@ -92,14 +93,14 @@ export function PeripheralPanel() {
                   <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#00d4ff" 
-                fillOpacity={1} 
-                fill="url(#colorVal)" 
-                strokeWidth={1} 
-                isAnimationActive={false} 
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="#00d4ff"
+                fillOpacity={1}
+                fill="url(#colorVal)"
+                strokeWidth={1}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>

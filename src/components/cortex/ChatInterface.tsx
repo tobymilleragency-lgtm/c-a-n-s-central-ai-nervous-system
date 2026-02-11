@@ -4,14 +4,15 @@ import { Message } from "../../../worker/types";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Loader2, User, Zap, BrainCircuit, CheckCircle, FileText, ArrowUpRight, XCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Send, Sparkles, Loader2, User, Zap, BrainCircuit, CheckCircle, XCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLocation, useSearchParams } from "react-router-dom";
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -33,7 +34,7 @@ export function ChatInterface() {
   const scrollToBottom = useCallback((force = false) => {
     if (scrollRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      const threshold = 300; // Increased threshold for larger content jumps
+      const threshold = 400;
       const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
       if (force || isAtBottom) {
         scrollRef.current.scrollTo({
@@ -47,10 +48,18 @@ export function ChatInterface() {
     if (!text.trim() || isLoading) return;
     setInput("");
     setIsLoading(true);
-    const res = await chatService.sendMessage(text);
-    if (res.success) await loadMessages();
+    setStreamingMessage("");
+    // Passing onChunk callback for real-time streaming updates
+    const res = await chatService.sendMessage(text, undefined, (chunk) => {
+      setStreamingMessage(prev => prev + chunk);
+      scrollToBottom();
+    });
+    if (res.success) {
+      setStreamingMessage("");
+      await loadMessages();
+    }
     setIsLoading(false);
-  }, [isLoading, loadMessages]);
+  }, [isLoading, loadMessages, scrollToBottom]);
   useEffect(() => {
     loadMessages();
   }, [loadMessages, location.pathname]);
@@ -63,7 +72,7 @@ export function ChatInterface() {
   }, [searchParams, sendMessage, setSearchParams]);
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, scrollToBottom]);
+  }, [messages, streamingMessage, isLoading, scrollToBottom]);
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden">
       <div className="sticky top-0 left-0 right-0 flex justify-between items-center py-4 border-b border-white/5 bg-neural-bg/80 backdrop-blur-xl z-30">
@@ -72,14 +81,14 @@ export function ChatInterface() {
            <span className="text-[10px] font-black tracking-[0.3em] text-bio-cyan uppercase">{getContextName()}</span>
         </div>
         <div className="flex items-center gap-4 text-[9px] font-mono text-white/20">
-          <span className="hidden sm:inline">THROUGHPUT: 1.2 GB/s</span>
+          <span className="hidden sm:inline">THROUGHPUT: {isLoading ? '4.8' : '1.2'} GB/s</span>
           <div className="hidden sm:block h-3 w-[1px] bg-white/10" />
-          <span>STATUS: SYNCED</span>
+          <span>STATUS: {isLoading ? 'PROCESSING' : 'SYNCED'}</span>
         </div>
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar py-8 md:py-10 lg:py-12 pb-40">
         <div className="max-w-4xl mx-auto space-y-12">
-          {messages.length === 0 && (
+          {messages.length === 0 && !streamingMessage && (
             <div className="flex flex-col items-center justify-center text-center space-y-8 opacity-40 py-24 min-h-[40vh]">
               <div className="relative">
                 <BrainCircuit className="text-bio-cyan w-20 h-20 animate-pulse" />
@@ -124,7 +133,27 @@ export function ChatInterface() {
               </div>
             </motion.div>
           ))}
-          {isLoading && (
+          {/* Streaming Message Implementation */}
+          {streamingMessage && (
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center border border-bio-cyan/20 bg-bio-cyan/5 shadow-glow shrink-0">
+                <Sparkles size={18} className="text-bio-cyan animate-pulse" />
+              </div>
+              <div className="max-w-[85%] text-left">
+                <NeuralCard className="p-5 border-white/5 bg-bio-cyan/[0.03]" glow>
+                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap font-medium text-white/90">
+                    {streamingMessage}
+                    <motion.span
+                      animate={{ opacity: [0, 1, 0] }}
+                      transition={{ repeat: Infinity, duration: 0.8 }}
+                      className="inline-block w-1.5 h-4 bg-bio-cyan ml-1 align-middle"
+                    />
+                  </p>
+                </NeuralCard>
+              </div>
+            </div>
+          )}
+          {isLoading && !streamingMessage && (
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-bio-cyan/5 border border-bio-cyan/20 flex items-center justify-center">
                 <Loader2 size={18} className="text-bio-cyan animate-spin" />
@@ -153,6 +182,7 @@ export function ChatInterface() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
                 placeholder="Transmit synaptic query"
+                disabled={isLoading}
                 className="border-0 bg-transparent text-white placeholder:text-white/30 focus-visible:ring-0 text-sm tracking-[0.05em] font-black uppercase h-14"
               />
               <Button

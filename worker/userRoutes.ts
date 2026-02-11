@@ -88,20 +88,35 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                 <html>
                     <body style="background: #0a0e1a; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif;">
                         <script>
-                            window.opener.postMessage({
-                                type: 'AUTH_SUCCESS',
-                                service: 'google',
-                                email: '${email}',
-                                display_name: '${displayName}',
-                                status: 'active'
-                            }, '*');
-                            setTimeout(() => window.close(), 1200);
+                            try {
+                                if (window.opener) {
+                                    window.opener.postMessage({
+                                        type: 'AUTH_SUCCESS',
+                                        service: 'google',
+                                        email: '${email}',
+                                        display_name: '${displayName}',
+                                        status: 'active'
+                                    }, '*');
+                                    setTimeout(() => window.close(), 1500);
+                                } else {
+                                    console.log("Opener lost. Redirecting...");
+                                    window.location.href = '/';
+                                }
+                            } catch (e) {
+                                window.location.href = '/';
+                            }
                         </script>
-                        <div style="text-align: center; border: 1px solid rgba(0,212,255,0.2); padding: 40px; border-radius: 20px; background: rgba(0,212,255,0.05); max-width: 400px;">
+                        <div style="text-align: center; border: 1px solid rgba(0,212,255,0.2); padding: 40px; border-radius: 20px; background: rgba(0,212,255,0.05); max-width: 400px; backdrop-blur: 10px;">
                             <h2 style="color: #10b981; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 10px;">Synaptic Link Established</h2>
                             <p style="color: white; font-weight: bold; margin: 10px 0;">${displayName}</p>
-                            <p style="color: rgba(255,255,255,0.4); font-size: 10px; margin-top: 20px;">NEURAL PATHWAY SYNCED. RETURNING TO CORE...</p>
+                            <p style="color: rgba(0,212,255,0.6); font-size: 10px; margin-top: 20px; font-family: monospace; letter-spacing: 0.1em;">NEURAL PATHWAY SYNCED. RETURNING TO CORE...</p>
+                            <div style="margin-top: 20px; height: 2px; background: rgba(0,212,255,0.1); width: 100%; border-radius: 2px; overflow: hidden;">
+                                <div style="height: 100%; background: #00d4ff; width: 0%; animation: sync-progress 1.5s ease-out forwards;"></div>
+                            </div>
                         </div>
+                        <style>
+                            @keyframes sync-progress { to { width: 100%; } }
+                        </style>
                     </body>
                 </html>
             `);

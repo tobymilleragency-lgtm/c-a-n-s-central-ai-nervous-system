@@ -70,9 +70,11 @@ export class ChatHandler {
         }
       }
     }
-    if (accumulatedToolCalls.length > 0) {
-      const executedTools = await this.executeToolCalls(accumulatedToolCalls, sessionId);
-      const finalResponse = await this.generateToolResponse(message, history, accumulatedToolCalls, executedTools, services);
+    // Harden: Filter accumulated tool calls to remove holes before execution
+    const validToolCalls = accumulatedToolCalls.filter(Boolean);
+    if (validToolCalls.length > 0) {
+      const executedTools = await this.executeToolCalls(validToolCalls, sessionId);
+      const finalResponse = await this.generateToolResponse(message, history, validToolCalls, executedTools, services);
       return { content: finalResponse, toolCalls: executedTools };
     }
     return { content: fullContent };
@@ -94,7 +96,13 @@ export class ChatHandler {
             args = JSON.parse(tc.function.arguments);
           } catch (e) {
             console.warn(`[CANS] Synaptic tool argument parsing failed for ${tc.function.name}:`, e);
-            args = {}; // Fallback to empty object
+            // Fallback attempt to fix common malformed JSON from LLMs
+            try {
+              const repaired = tc.function.arguments.replace(/'/g, '"').replace(/(\w+):/g, '"$1":');
+              args = JSON.parse(repaired);
+            } catch {
+              args = {};
+            }
           }
         }
         const result = await executeTool(tc.function.name, args, sessionId, this.env);
@@ -114,7 +122,7 @@ export class ChatHandler {
         { role: 'user', content: userMessage },
         { role: 'assistant', content: null, tool_calls: openAiToolCalls },
         ...toolResults.map((result, index) => ({
-          role: 'tool' as const, content: JSON.stringify(result.result), tool_call_id: openAiToolCalls[index]?.id || result.id
+          role: 'tool' as const, content: JSON.stringify(result.result || { success: true }), tool_call_id: openAiToolCalls[index]?.id || result.id
         }))
       ]
     });
