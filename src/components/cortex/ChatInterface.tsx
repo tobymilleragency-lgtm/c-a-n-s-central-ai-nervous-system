@@ -86,7 +86,7 @@ export function ChatInterface() {
           <span>STATUS: {isLoading ? 'PROCESSING' : 'SYNCED'}</span>
         </div>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar py-8 md:py-10 lg:py-12 pb-40">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar py-8 md:py-10 lg:py-12 pb-44">
         <div className="max-w-4xl mx-auto space-y-12">
           {messages.length === 0 && !streamingMessage && (
             <div className="flex flex-col items-center justify-center text-center space-y-8 opacity-40 py-24 min-h-[40vh]">
@@ -172,7 +172,7 @@ export function ChatInterface() {
           )}
         </div>
       </div>
-      <div className="absolute bottom-8 left-0 right-0 pointer-events-none z-40">
+      <div className="absolute bottom-12 left-0 right-0 pointer-events-none z-40">
         <div className="max-w-4xl mx-auto w-full pointer-events-auto">
           <div className="relative group px-6 sm:px-0">
             <div className="absolute -inset-1 bg-gradient-to-r from-bio-cyan to-memory-violet rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition duration-700" />

@@ -15,7 +15,8 @@ export function SpatialPage() {
     setLoading(true);
     try {
       const data = await chatService.getDirections(origin, dest);
-      setRoute(data);
+      // Update to handle structured route object from worker/tools.ts
+      setRoute(data?.route || null);
     } catch (error) {
       setRoute(null);
     } finally {

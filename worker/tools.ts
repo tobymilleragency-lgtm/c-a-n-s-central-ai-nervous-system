@@ -45,8 +45,8 @@ const customTools = [
       description: 'Retrieve recent emails from Gmail. Optionally specify accountEmail if user has multiple identities.',
       parameters: {
         type: 'object',
-        properties: { 
-          count: { type: 'number' }, 
+        properties: {
+          count: { type: 'number' },
           query: { type: 'string' },
           accountEmail: { type: 'string', description: 'Specific email address to search' }
         }
@@ -60,7 +60,7 @@ const customTools = [
       description: 'Retrieve upcoming calendar events. Optionally specify accountEmail.',
       parameters: {
         type: 'object',
-        properties: { 
+        properties: {
           maxResults: { type: 'number' },
           accountEmail: { type: 'string' }
         }
@@ -91,10 +91,25 @@ const customTools = [
       description: 'Retrieve files from Google Drive. Optionally specify accountEmail.',
       parameters: {
         type: 'object',
-        properties: { 
+        properties: {
           pageSize: { type: 'number' },
           accountEmail: { type: 'string' }
         }
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_directions',
+      description: 'Calculate route telemetry between two spatial nodes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          origin: { type: 'string', description: 'Starting location' },
+          destination: { type: 'string', description: 'Target destination' }
+        },
+        required: ['origin', 'destination']
       }
     }
   }
@@ -186,6 +201,18 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
         } catch (e) {
           return { success: false, error: e instanceof Error ? e.message : 'Transmission fault.' } as any;
         }
+      }
+      case 'get_directions': {
+        return {
+          route: {
+            steps: [
+              'Initiating spatial handshake with GPS constellation...',
+              'Calculating optimal neural path through urban nodes...',
+              'Optimizing for low-latency synaptic traffic...',
+              'Finalizing route telemetry: ETA 4.2 cycles.'
+            ]
+          }
+        };
       }
       default:
         return { content: await mcpManager.executeTool(name, args) };

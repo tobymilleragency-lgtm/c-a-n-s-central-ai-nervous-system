@@ -59,7 +59,7 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
             </footer>
           </main>
           {/* Right Panel (Peripheral Awareness) */}
-          <aside className={`border-l border-white/5 bg-[#0a0e1a]/40 backdrop-blur-md z-20 overflow-hidden lg:block w-[320px] transition-all duration-300 ease-in-out shadow-[0_-10px_50px_rgba(0,212,255,0.1)] ${isPeripheralOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full'}`}>
+          <aside className={cn("border-l border-white/5 bg-[#0a0e1a]/40 backdrop-blur-md z-20 overflow-hidden lg:block transition-all duration-300 ease-in-out shadow-[0_-10px_50px_rgba(0,212,255,0.1)]", isPeripheralOpen ? 'w-[320px] opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-full')}>
             <div className="w-full h-full overflow-y-auto no-scrollbar">
               {peripheral}
             </div>
