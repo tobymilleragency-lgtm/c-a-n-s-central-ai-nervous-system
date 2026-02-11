@@ -65,9 +65,30 @@ class ChatService {
       return j.success ? j.data : null;
     } catch { return null; }
   }
-  async getEmails(): Promise<GmailMessage[]> { try { const r = await fetch(`${this.baseUrl}/emails`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async getDriveFiles(): Promise<any[]> { try { const r = await fetch(`${this.baseUrl}/drive`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async getTasks(): Promise<any[]> { try { const r = await fetch(`/api/tasks?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
+  async getEmails(email?: string): Promise<GmailMessage[]> { 
+    try { 
+      const query = email ? `?accountEmail=${encodeURIComponent(email)}` : '';
+      const r = await fetch(`${this.baseUrl}/emails${query}`); 
+      const j = await r.json(); 
+      return j.success ? j.data : []; 
+    } catch { return []; } 
+  }
+  async getDriveFiles(email?: string): Promise<any[]> { 
+    try { 
+      const query = email ? `?accountEmail=${encodeURIComponent(email)}` : '';
+      const r = await fetch(`${this.baseUrl}/drive${query}`); 
+      const j = await r.json(); 
+      return j.success ? j.data : []; 
+    } catch { return []; } 
+  }
+  async getTasks(email?: string): Promise<any[]> { 
+    try { 
+      const query = `?sessionId=${this.sessionId}${email ? `&accountEmail=${encodeURIComponent(email)}` : ''}`;
+      const r = await fetch(`/api/tasks${query}`); 
+      const j = await r.json(); 
+      return j.success ? j.data : []; 
+    } catch { return []; } 
+  }
   async getMemories(): Promise<any[]> { try { const r = await fetch(`/api/memories?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
   async updateTaskStatus(id: string, s: string): Promise<boolean> { try { const r = await fetch(`/api/tasks/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: s, sessionId: this.sessionId }) }); const j = await r.json(); return !!j.success; } catch { return false; } }
   async deleteMemory(id: string): Promise<boolean> { try { const r = await fetch(`/api/memories/${id}?sessionId=${this.sessionId}`, { method: 'DELETE' }); const j = await r.json(); return !!j.success; } catch { return false; } }

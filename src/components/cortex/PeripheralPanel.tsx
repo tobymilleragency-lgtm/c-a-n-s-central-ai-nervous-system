@@ -1,62 +1,90 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NeuralCard } from "@/components/ui/neural-card";
-import { Mail, Calendar, Activity, Clock } from "lucide-react";
+import { Mail, Calendar, Activity, Clock, UserCircle, ChevronDown } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { ConnectedService, GmailMessage } from "../../../worker/types";
 import { AreaChart, Area, ResponsiveContainer, RadialBarChart, RadialBar } from 'recharts';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 export function PeripheralPanel() {
   const [services, setServices] = useState<ConnectedService[]>([]);
+  const [activeAccount, setActiveAccount] = useState<string | null>(null);
   const [emails, setEmails] = useState<GmailMessage[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [telemetry, setTelemetry] = useState(() =>
     Array.from({ length: 12 }, (_, i) => ({ value: 20 + Math.random() * 60 }))
   );
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (email?: string) => {
     try {
       const [status, emailData, taskData] = await Promise.all([
         chatService.getServiceStatus(),
-        chatService.getEmails(),
-        chatService.getTasks()
+        chatService.getEmails(email),
+        chatService.getTasks(email)
       ]);
       setServices(Array.isArray(status) ? status : []);
       setEmails(Array.isArray(emailData) ? emailData.slice(0, 3) : []);
       setTasks(Array.isArray(taskData) ? taskData.slice(0, 3) : []);
       setTelemetry(prev => [...prev.slice(1), { value: 30 + Math.random() * 50 }]);
+      if (!email && Array.isArray(status) && status.length > 0 && !activeAccount) {
+        setActiveAccount(status[0].email || null);
+      }
     } catch (error) {
       console.error("Peripheral failure:", error);
     }
-  }, []);
+  }, [activeAccount]);
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 15000);
-    const handleAuth = (e: MessageEvent) => {
-      if (e.data?.type === 'AUTH_SUCCESS') {
-        fetchData();
-      }
-    };
-    window.addEventListener('message', handleAuth);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('message', handleAuth);
-    };
-  }, [fetchData]);
-  const isGmailConnected = useMemo(() => services.some(s => s.name === 'gmail' && s.status === 'active'), [services]);
-  const isCalendarConnected = useMemo(() => services.some(s => s.name === 'calendar' && s.status === 'active'), [services]);
+    fetchData(activeAccount || undefined);
+    const interval = setInterval(() => fetchData(activeAccount || undefined), 15000);
+    return () => clearInterval(interval);
+  }, [fetchData, activeAccount]);
+  const activeNode = useMemo(() => services.find(s => s.email === activeAccount), [services, activeAccount]);
+  const isGmailConnected = useMemo(() => services.some(s => s.name === 'google' && s.status === 'active'), [services]);
   const radialData = useMemo(() => [
-    { name: 'Gmail', value: isGmailConnected ? 100 : 30, fill: '#00d4ff' },
-    { name: 'Temporal', value: isCalendarConnected ? 100 : 30, fill: '#8b5cf6' },
+    { name: 'Synapse', value: isGmailConnected ? 100 : 30, fill: '#00d4ff' },
     { name: 'System', value: 100, fill: '#10b981' },
-  ], [isGmailConnected, isCalendarConnected]);
+  ], [isGmailConnected]);
   return (
     <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar">
+      {/* Node Selector */}
+      <section>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="w-full flex items-center justify-between p-3 rounded-xl bg-bio-cyan/5 border border-bio-cyan/20 text-bio-cyan group hover:bg-bio-cyan/10 transition-all">
+              <div className="flex items-center gap-3">
+                <UserCircle size={16} />
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest leading-none">Identity Node</p>
+                  <p className="text-[9px] font-mono text-white/40 truncate max-w-[140px] mt-1">
+                    {activeAccount || 'Link Account...'}
+                  </p>
+                </div>
+              </div>
+              <ChevronDown size={14} className="opacity-40 group-hover:opacity-100" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="neural-glass border-white/10 w-64 p-2">
+            {services.map((s) => (
+              <DropdownMenuItem 
+                key={s.email} 
+                onClick={() => setActiveAccount(s.email || null)}
+                className="flex items-center justify-between rounded-lg p-3 cursor-pointer hover:bg-bio-cyan/10"
+              >
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white">{s.display_name || 'User'}</p>
+                  <p className="text-[9px] font-mono text-white/40">{s.email}</p>
+                </div>
+                {activeAccount === s.email && <div className="h-1.5 w-1.5 rounded-full bg-bio-cyan shadow-[0_0_8px_#00d4ff]" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </section>
       {/* Neural Telemetry */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black flex items-center gap-2">
-            <Activity size={12} className="text-bio-cyan" />
-            Neural Telemetry
+            <Activity size={12} className="text-bio-cyan" /> Telemetry
           </h3>
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
@@ -69,46 +97,9 @@ export function PeripheralPanel() {
                   <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#00d4ff" 
-                fillOpacity={1} 
-                fill="url(#colorVal)" 
-                strokeWidth={1} 
-                isAnimationActive={false} 
-              />
+              <Area type="monotone" dataKey="value" stroke="#00d4ff" fillOpacity={1} fill="url(#colorVal)" strokeWidth={1} isAnimationActive={false} />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
-      </section>
-      {/* Pathway Health */}
-      <section className="flex items-center gap-4">
-        <div className="h-24 w-24">
-          <ResponsiveContainer width="100%" height={96}>
-            <RadialBarChart 
-              innerRadius="60%" 
-              outerRadius="100%" 
-              data={radialData} 
-              startAngle={180} 
-              endAngle={0}
-            >
-              <RadialBar background dataKey="value" cornerRadius={10} />
-            </RadialBarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex-1 space-y-2">
-          {radialData.map(d => (
-            <div key={d.name} className="flex items-center justify-between">
-              <span className="text-[8px] uppercase tracking-widest text-white/40">{d.name}</span>
-              <div className="h-1 w-12 bg-white/5 rounded-full overflow-hidden">
-                <div 
-                  className="h-full transition-all duration-1000" 
-                  style={{ width: `${d.value}%`, backgroundColor: d.fill }} 
-                />
-              </div>
-            </div>
-          ))}
         </div>
       </section>
       <div className="space-y-8">
@@ -128,7 +119,7 @@ export function PeripheralPanel() {
             <AnimatePresence mode="popLayout">
               {emails.length > 0 ? emails.map((email) => (
                 <motion.div key={email.id} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-                  <NeuralCard className="p-3 border-white/5 hover:border-bio-cyan/30 transition-all cursor-default bg-white/[0.02]">
+                  <NeuralCard className="p-3 border-white/5 hover:border-bio-cyan/30 bg-white/[0.02]">
                     <h4 className="text-[10px] font-bold text-white/80 truncate">{email.subject}</h4>
                     <p className="text-[9px] text-white/30 mt-1 truncate font-mono">{email.sender.split('<')[0]}</p>
                   </NeuralCard>
@@ -144,12 +135,11 @@ export function PeripheralPanel() {
           <div className="flex items-center justify-between mb-4 px-1">
             <div className={cn(
               "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-500",
-              isCalendarConnected ? 'text-[#10b981] drop-shadow-[0_0_8px_#10b981]' : 'text-white/20'
+              tasks.length > 0 ? 'text-[#10b981] drop-shadow-[0_0_8px_#10b981]' : 'text-white/20'
             )}>
               <Calendar size={12} />
               Temporal Buffer
             </div>
-            {isCalendarConnected && <div className="h-1.5 w-1.5 rounded-full bg-[#10b981] animate-ping" />}
           </div>
           <div className="space-y-2.5">
             <AnimatePresence mode="popLayout">
@@ -177,11 +167,7 @@ export function PeripheralPanel() {
             <span className="text-bio-cyan font-mono">0.4ms</span>
           </div>
           <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-             <motion.div
-               animate={{ width: ["10%", "90%", "30%", "60%"] }}
-               transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-               className="h-full bg-gradient-to-r from-bio-cyan/20 to-[#10b981] shadow-[0_0_12px_#10b981]"
-             />
+             <motion.div animate={{ width: ["10%", "90%", "30%", "60%"] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} className="h-full bg-gradient-to-r from-bio-cyan/20 to-[#10b981] shadow-[0_0_12px_#10b981]" />
           </div>
         </NeuralCard>
       </div>

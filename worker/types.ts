@@ -23,6 +23,7 @@ export interface GmailMessage {
 export interface ConnectedService {
   name: string;
   email?: string;
+  display_name?: string;
   status: 'active' | 'expired' | 'disconnected';
   lastSync?: string;
   connectedAt?: string;

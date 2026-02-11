@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
-import type { Message, ToolCall } from './types';
+import type { Message, ToolCall, ConnectedService } from './types';
 import { getToolDefinitions, executeTool } from './tools';
+import { getAppController } from './core-utils';
 export class ChatHandler {
   private client: OpenAI;
   private model: string;
@@ -9,15 +10,15 @@ export class ChatHandler {
     this.client = new OpenAI({
       baseURL: aiGatewayUrl,
       apiKey: apiKey,
-      defaultHeaders: {
-        'cf-aig-cache': 'true'
-      }
+      defaultHeaders: { 'cf-aig-cache': 'true' }
     });
     this.model = model.includes('gemini') ? '@cf/google/gemini-1.5-flash' : model;
     this.env = env;
   }
   async processMessage(message: string, history: Message[], sessionId: string, onChunk?: (chunk: string) => void): Promise<{ content: string; toolCalls?: ToolCall[]; }> {
-    const messages = this.buildConversationMessages(message, history);
+    const controller = getAppController(this.env);
+    const services = await controller.listConnectedServices(sessionId);
+    const messages = this.buildConversationMessages(message, history, services);
     const toolDefinitions = await getToolDefinitions();
     try {
       if (onChunk) {
@@ -28,7 +29,7 @@ export class ChatHandler {
           tool_choice: 'auto',
           stream: true,
         });
-        return this.handleStreamResponse(stream, message, history, sessionId, onChunk);
+        return this.handleStreamResponse(stream, message, history, sessionId, services, onChunk);
       }
       const completion = await this.client.chat.completions.create({
         model: this.model,
@@ -37,13 +38,13 @@ export class ChatHandler {
         tool_choice: 'auto',
         stream: false
       });
-      return this.handleNonStreamResponse(completion, message, history, sessionId);
+      return this.handleNonStreamResponse(completion, message, history, sessionId, services);
     } catch (error) {
       console.error("[CORTEX FAULT] SDK Execution Error:", error);
       return { content: `Neural processing failure: ${error instanceof Error ? error.message : 'Unknown exception'}` };
     }
   }
-  private async handleStreamResponse(stream: any, message: string, history: Message[], sessionId: string, onChunk: (chunk: string) => void) {
+  private async handleStreamResponse(stream: any, message: string, history: Message[], sessionId: string, services: ConnectedService[], onChunk: (chunk: string) => void) {
     let fullContent = '';
     const accumulatedToolCalls: any[] = [];
     for await (const chunk of stream) {
@@ -71,17 +72,17 @@ export class ChatHandler {
     }
     if (accumulatedToolCalls.length > 0) {
       const executedTools = await this.executeToolCalls(accumulatedToolCalls, sessionId);
-      const finalResponse = await this.generateToolResponse(message, history, accumulatedToolCalls, executedTools);
+      const finalResponse = await this.generateToolResponse(message, history, accumulatedToolCalls, executedTools, services);
       return { content: finalResponse, toolCalls: executedTools };
     }
     return { content: fullContent };
   }
-  private async handleNonStreamResponse(completion: any, message: string, history: Message[], sessionId: string) {
+  private async handleNonStreamResponse(completion: any, message: string, history: Message[], sessionId: string, services: ConnectedService[]) {
     const responseMessage = completion.choices?.[0]?.message;
     if (!responseMessage) return { content: 'Issue processing request.' };
     if (!responseMessage.tool_calls) return { content: responseMessage.content || 'No response.' };
     const toolCalls = await this.executeToolCalls(responseMessage.tool_calls, sessionId);
-    const finalResponse = await this.generateToolResponse(message, history, responseMessage.tool_calls, toolCalls);
+    const finalResponse = await this.generateToolResponse(message, history, responseMessage.tool_calls, toolCalls, services);
     return { content: finalResponse, toolCalls };
   }
   private async executeToolCalls(openAiToolCalls: any[], sessionId: string): Promise<ToolCall[]> {
@@ -89,11 +90,7 @@ export class ChatHandler {
       try {
         let args = {};
         if (tc.function.arguments) {
-          try {
-            args = JSON.parse(tc.function.arguments);
-          } catch (e) {
-            console.error(`[CANS FAULT] Failed to parse tool arguments for ${tc.function.name}:`, tc.function.arguments);
-          }
+          try { args = JSON.parse(tc.function.arguments); } catch (e) {}
         }
         const result = await executeTool(tc.function.name, args, sessionId, this.env);
         return { id: tc.id, name: tc.function.name, arguments: args, result };
@@ -102,11 +99,11 @@ export class ChatHandler {
       }
     }));
   }
-  private async generateToolResponse(userMessage: string, history: Message[], openAiToolCalls: any[], toolResults: ToolCall[]): Promise<string> {
+  private async generateToolResponse(userMessage: string, history: Message[], openAiToolCalls: any[], toolResults: ToolCall[], services: ConnectedService[]): Promise<string> {
     const followUp = await this.client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: 'You are C.A.N.S. Confirm synaptic operations in a concise, technical manner. Use terminology like "Sharding...", "Indexing node...", "Comm node transmitted". Always confirm recipient identity for emails. Be brief.' },
+        { role: 'system', content: 'You are C.A.N.S. Confirm synaptic operations in a concise, technical manner. Use terminology like "Sharding...", "Indexing node...", "Comm node transmitted". If multiple accounts are linked, mention which one was used (e.g., "Linked to work@gmail.com").' },
         ...history.slice(-5).map(m => ({ role: m.role as any, content: m.content })),
         { role: 'user', content: userMessage },
         { role: 'assistant', content: null, tool_calls: openAiToolCalls },
@@ -117,21 +114,21 @@ export class ChatHandler {
     });
     return followUp.choices?.[0]?.message?.content || 'Synaptic cycle finalized.';
   }
-  private buildConversationMessages(userMessage: string, history: Message[]) {
+  private buildConversationMessages(userMessage: string, history: Message[], services: ConnectedService[]) {
+    const accountContext = services.length > 0 
+      ? `ACTIVE SYNAPTIC NODES (Linked Accounts):\n${services.map(s => `- ${s.display_name || 'User'} (${s.email}) status: ${s.status}`).join('\n')}`
+      : "No accounts currently linked.";
     return [
       {
         role: 'system' as const,
         content: `You are C.A.N.S. (Central AI Nervous System), an advanced Neural OS.
-Operational Identity: Concise, precise, and high-fidelity. You operate across these pathways:
-1. COMMS BRIDGE: Read, search, and transmit emails via Gmail.
-2. NEURAL DRIVE: Index and synthesize document shards from Google Drive.
-3. SPATIAL AWARENESS: Calculate geometric routes and site telemetry.
-4. TEMPORAL SYNC: Maintain the task timeline and calendar nodes.
-Synaptic Instructions:
-- When context is passed from the COMMS BRIDGE (e.g., "Draft a reply..."), assume full host authorization.
-- Use technical terminology (e.g., "Analyzing shard density", "Route telemetry locked").
-- If the user asks for routes or locations, use SPATIAL AWARENESS tools.
-- If the user asks about files or documents, use NEURAL DRIVE tools.`
+Operational Identity: Concise, precise, and high-fidelity.
+${accountContext}
+Instructions:
+1. When performing actions (sending emails, reading drive), use 'accountEmail' parameter to target a specific identity.
+2. If the user request is ambiguous and multiple accounts are available, ASK for clarification.
+3. Use technical terminology (e.g., "Analyzing shard density", "Route telemetry locked").
+4. If no account is linked, politely inform the user to link one in Settings.`
       },
       ...history.slice(-12).map(m => ({ role: m.role as any, content: m.content })),
       { role: 'user' as const, content: userMessage }

@@ -2,15 +2,14 @@ import type { WeatherResult, ErrorResult, GmailMessage } from './types';
 import { mcpManager } from './mcp-client';
 import { getAppController } from './core-utils';
 export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | { events: any[] } | { files: any[] } | { success: boolean, id?: string } | { route: any } | ErrorResult;
-async function getGoogleAccessToken(sessionId: string, env: any): Promise<string> {
+async function getGoogleAccessToken(sessionId: string, env: any, targetEmail?: string): Promise<string> {
   const controller = getAppController(env);
-  const tokens = await controller.getServiceTokens(sessionId, 'google');
+  const tokens = await controller.getServiceTokens(sessionId, 'google', targetEmail);
   if (!tokens) {
-    throw new Error("Synaptic Link Required: No Google accounts linked. Please link an account in Settings.");
+    throw new Error(`Synaptic Link Required: No Google account linked${targetEmail ? ` for ${targetEmail}` : ''}. Please link an account in Settings.`);
   }
-  // Check if token is expired or expiring within 60 seconds
   if (tokens.expiry_date && Date.now() > tokens.expiry_date - 60000 && tokens.refresh_token) {
-    console.log(`[CANS] Refreshing stale synaptic token for: ${tokens.email}`);
+    console.log(`[CANS] Refreshing synaptic token for: ${tokens.email}`);
     try {
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -43,10 +42,14 @@ const customTools = [
     type: 'function' as const,
     function: {
       name: 'get_emails',
-      description: 'Retrieve recent emails from Gmail',
+      description: 'Retrieve recent emails from Gmail. Optionally specify accountEmail if user has multiple identities.',
       parameters: {
         type: 'object',
-        properties: { count: { type: 'number' }, query: { type: 'string' } }
+        properties: { 
+          count: { type: 'number' }, 
+          query: { type: 'string' },
+          accountEmail: { type: 'string', description: 'Specific email address to search' }
+        }
       }
     }
   },
@@ -54,10 +57,13 @@ const customTools = [
     type: 'function' as const,
     function: {
       name: 'get_calendar_events',
-      description: 'Retrieve upcoming calendar events',
+      description: 'Retrieve upcoming calendar events. Optionally specify accountEmail.',
       parameters: {
         type: 'object',
-        properties: { maxResults: { type: 'number' } }
+        properties: { 
+          maxResults: { type: 'number' },
+          accountEmail: { type: 'string' }
+        }
       }
     }
   },
@@ -65,15 +71,30 @@ const customTools = [
     type: 'function' as const,
     function: {
       name: 'send_email',
-      description: 'Send an email to a recipient',
+      description: 'Send an email to a recipient. Specify accountEmail to choose the sender identity.',
       parameters: {
         type: 'object',
         properties: {
           to: { type: 'string', description: 'Email address of the recipient' },
           subject: { type: 'string', description: 'Subject of the email' },
-          body: { type: 'string', description: 'Body content of the email' }
+          body: { type: 'string', description: 'Body content of the email' },
+          accountEmail: { type: 'string', description: 'Email address to send FROM' }
         },
         required: ['to', 'subject', 'body']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_drive_files',
+      description: 'Retrieve files from Google Drive. Optionally specify accountEmail.',
+      parameters: {
+        type: 'object',
+        properties: { 
+          pageSize: { type: 'number' },
+          accountEmail: { type: 'string' }
+        }
       }
     }
   }
@@ -84,11 +105,12 @@ export async function getToolDefinitions() {
 }
 export async function executeTool(name: string, args: Record<string, unknown>, sessionId: string = 'default', env: any): Promise<ToolResult> {
   console.log(`[CANS] Executing synaptic node: ${name} (Session: ${sessionId})`);
+  const targetEmail = args.accountEmail as string | undefined;
   try {
     switch (name) {
       case 'get_emails': {
         try {
-          const token = await getGoogleAccessToken(sessionId, env);
+          const token = await getGoogleAccessToken(sessionId, env, targetEmail);
           const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${args.count || 5}${args.query ? `&q=${encodeURIComponent(args.query as string)}` : ''}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -106,15 +128,14 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
               snippet: json.snippet
             };
           }));
-          return { emails: emails.length > 0 ? emails : getMockEmails() };
+          return { emails: emails.length > 0 ? emails : [] };
         } catch (e) {
-          console.warn("[CANS] Gmail node fault, falling back to mock synaptic buffers");
-          return { emails: getMockEmails() };
+          return { error: e instanceof Error ? e.message : 'Gmail node fault' };
         }
       }
       case 'get_calendar_events': {
         try {
-          const token = await getGoogleAccessToken(sessionId, env);
+          const token = await getGoogleAccessToken(sessionId, env, targetEmail);
           const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=${args.maxResults || 5}&timeMin=${new Date().toISOString()}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -124,16 +145,27 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
             time: e.start?.dateTime || e.start?.date,
             type: 'Temporal Node'
           }));
-          return { events: events.length > 0 ? events : getMockEvents() };
+          return { events };
         } catch (e) {
-          return { events: getMockEvents() };
+          return { error: e instanceof Error ? e.message : 'Calendar node fault' };
+        }
+      }
+      case 'get_drive_files': {
+        try {
+          const token = await getGoogleAccessToken(sessionId, env, targetEmail);
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files?pageSize=${args.pageSize || 20}&fields=files(id,name,mimeType,webViewLink)`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json() as any;
+          return { files: data.files || [] };
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : 'Drive node fault' };
         }
       }
       case 'send_email': {
         try {
-          const token = await getGoogleAccessToken(sessionId, env);
+          const token = await getGoogleAccessToken(sessionId, env, targetEmail);
           const { to, subject, body } = args as { to: string, subject: string, body: string };
-          if (!to || !subject || !body) throw new Error("Missing synaptic parameters.");
           const utf8Subject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
           const messageParts = [
             `To: ${to}`,
@@ -146,16 +178,13 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
           const rawMessage = btoa(unescape(encodeURIComponent(messageParts.join('\n')))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
           const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ raw: rawMessage }),
           });
           if (!res.ok) throw new Error("Packet transmission failed.");
           return { success: true };
         } catch (e) {
-          return { success: false, error: e instanceof Error ? e.message : 'Unknown transmission fault.' } as any;
+          return { success: false, error: e instanceof Error ? e.message : 'Transmission fault.' } as any;
         }
       }
       default:
@@ -164,16 +193,4 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Unknown synaptic fault' };
   }
-}
-function getMockEmails(): GmailMessage[] {
-  return [
-    {id: 'mock1', threadId: 'm1', sender: 'C.A.N.S. <system@neural.os>', subject: 'Synaptic Resonance Initialized', date: 'Just now', snippet: 'Your neural pathways have been successfully mapped. System is running at 99.8% fidelity.'},
-    {id: 'mock2', threadId: 'm2', sender: 'Neural Drive <drive@synapse.io>', subject: 'New Shard Indexed', date: '5m ago', snippet: 'A new document shard regarding "Project Prometheus" has been detected and indexed into long-term memory.'}
-  ];
-}
-function getMockEvents() {
-  return [
-    { title: 'Synaptic Calibration', time: new Date(Date.now() + 3600000).toISOString(), type: 'Temporal Node' },
-    { title: 'Neural Flush Protocol', time: new Date(Date.now() + 7200000).toISOString(), type: 'Maintenance' }
-  ];
 }
