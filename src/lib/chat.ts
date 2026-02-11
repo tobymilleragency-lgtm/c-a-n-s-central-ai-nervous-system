@@ -25,8 +25,19 @@ class ChatService {
         body: JSON.stringify({ message, model, stream: !!onChunk }),
       });
       if (!response.ok) {
+        const clonedResponse = response.clone();
+        let errorDetail = `HTTP ${response.status} ${response.statusText}`;
+        let errorBody = '';
+        try {
+          errorBody = await clonedResponse.text();
+          const errorJson = JSON.parse(errorBody);
+          errorDetail = errorJson.error || errorJson.message || errorDetail;
+        } catch {
+          // Use status text if no JSON body
+        }
         if (response.status === 401) throw new Error("Auth required");
-        throw new Error(`HTTP ${response.status}`);
+        console.error('API Error Details:', { status: response.status, statusText: response.statusText, body: errorBody });
+        throw new Error(errorDetail);
       }
       if (onChunk && response.body) {
         const reader = response.body.getReader();
@@ -41,8 +52,12 @@ class ChatService {
       }
       return await response.json();
     } catch (error) {
-      console.error("SendMessage Error:", error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed' };
+      console.error('SendMessage Error Details:', { 
+        name: error?.name, 
+        message: error?.message, 
+        stack: error?.stack 
+      });
+      return { success: false, error: error instanceof Error ? error.message : 'Network error - failed to connect' };
     }
   }
   async getMessages(): Promise<ChatResponse> {
