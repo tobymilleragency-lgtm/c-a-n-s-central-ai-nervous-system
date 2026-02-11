@@ -4,7 +4,7 @@ import { Message } from "../../../worker/types";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Loader2, User, Zap, BrainCircuit, CheckCircle, FileText, ArrowUpRight } from "lucide-react";
+import { Send, Sparkles, Loader2, User, Zap, BrainCircuit, CheckCircle, FileText, ArrowUpRight, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -16,12 +16,20 @@ export function ChatInterface() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const getContextName = useCallback(() => {
-    const paths: Record<string, string> = { '/': 'CORE CORTEX', '/comms': 'COMMS BRIDGE', '/knowledge': 'KNOWLEDGE VAULT', '/temporal': 'TEMPORAL SYNC' };
+    const paths: Record<string, string> = { '/': 'CORE CORTEX', '/comms': 'COMMS BRIDGE', '/knowledge': 'KNOWLEDGE VAULT', '/temporal': 'TEMPORAL SYNC', '/drive': 'NEURAL DRIVE', '/spatial': 'SPATIAL AWARENESS' };
     return paths[location.pathname] || 'SYSTEM';
   }, [location.pathname]);
   const loadMessages = useCallback(async () => {
     const res = await chatService.getMessages();
     if (res.success && res.data) setMessages(res.data.messages);
+  }, []);
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, []);
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -42,10 +50,8 @@ export function ChatInterface() {
     }
   }, [searchParams, sendMessage, setSearchParams]);
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, isLoading]);
+    scrollToBottom();
+  }, [messages, isLoading, scrollToBottom]);
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto px-4 py-8 relative">
       {/* Context Header */}
@@ -55,7 +61,7 @@ export function ChatInterface() {
            <span className="text-[10px] font-black tracking-[0.3em] text-bio-cyan uppercase">{getContextName()}</span>
         </div>
         <div className="flex items-center gap-4 text-[9px] font-mono text-white/20">
-          <span>LATENCY: 0.12ms</span>
+          <span>THROUGHPUT: 1.2 GB/s</span>
           <div className="h-3 w-[1px] bg-white/10" />
           <span>STATUS: SYNCED</span>
         </div>
@@ -73,8 +79,14 @@ export function ChatInterface() {
             </div>
           </div>
         )}
-        {messages.map((msg) => (
-          <motion.div key={msg.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={cn("flex items-start gap-4", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+        {messages.map((msg, idx) => (
+          <motion.div 
+            key={msg.id || idx} 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.05 }} 
+            className={cn("flex items-start gap-4", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}
+          >
             <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0 transition-transform duration-500", msg.role === 'user' ? "border-alert-pink/20 bg-alert-pink/5" : "border-bio-cyan/20 bg-bio-cyan/5 shadow-glow")}>
               {msg.role === 'user' ? <User size={18} className="text-alert-pink" /> : <Sparkles size={18} className="text-bio-cyan" />}
             </div>
@@ -84,10 +96,11 @@ export function ChatInterface() {
                 {msg.toolCalls?.map(tc => {
                   const toolUI = renderToolCall(tc);
                   const isWrite = toolUI.type === 'write-success';
+                  const isError = toolUI.type === 'error';
                   return (
                     <div key={tc.id} className={cn("mt-6 pt-6 border-t border-white/10", isWrite && "bg-bio-cyan/5 -mx-5 -mb-5 px-5 pb-5 rounded-b-2xl animate-synaptic-fire")}>
-                      <div className="flex items-center gap-2 text-[11px] font-black text-bio-cyan uppercase tracking-widest">
-                        {isWrite ? <CheckCircle size={14} className="text-bio-cyan" /> : <Zap size={14} className="animate-pulse" />}
+                      <div className={cn("flex items-center gap-2 text-[11px] font-black uppercase tracking-widest", isError ? "text-alert-pink" : "text-bio-cyan")}>
+                        {isError ? <XCircle size={14} /> : isWrite ? <CheckCircle size={14} className="text-bio-cyan" /> : <Zap size={14} className="animate-pulse" />}
                         {toolUI.label}
                       </div>
                       {toolUI.type === 'files' && toolUI.data && (

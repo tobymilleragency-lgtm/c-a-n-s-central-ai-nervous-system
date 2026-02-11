@@ -111,14 +111,47 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
             headers: { Authorization: `Bearer ${token}` }
           });
           const data = await res.json() as any;
-          const events = (data.items || []).map((e: any) => ({ 
-            title: e.summary, 
-            time: e.start?.dateTime || e.start?.date, 
-            type: 'Temporal Node' 
+          const events = (data.items || []).map((e: any) => ({
+            title: e.summary,
+            time: e.start?.dateTime || e.start?.date,
+            type: 'Temporal Node'
           }));
           return { events: events.length > 0 ? events : getMockEvents() };
         } catch (e) {
           return { events: getMockEvents() };
+        }
+      }
+      case 'send_email': {
+        try {
+          const token = await getGoogleAccessToken(sessionId, env);
+          const { to, subject, body } = args as { to: string, subject: string, body: string };
+          if (!to || !subject || !body) throw new Error("Missing synaptic transmission parameters: recipient, subject, or body.");
+          const utf8Subject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+          const messageParts = [
+            `To: ${to}`,
+            'Content-Type: text/html; charset=utf-8',
+            'MIME-Version: 1.0',
+            `Subject: ${utf8Subject}`,
+            '',
+            body,
+          ];
+          const rawMessage = btoa(unescape(encodeURIComponent(messageParts.join('\n')))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+          const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ raw: rawMessage }),
+          });
+          if (!res.ok) {
+            const errorData = await res.json() as any;
+            throw new Error(errorData.error?.message || "Failed to transmit neural packet.");
+          }
+          return { success: true };
+        } catch (e) {
+          console.error("[CANS] Send email node failed:", e);
+          return { success: false, error: e instanceof Error ? e.message : 'Unknown transmission fault.' } as any;
         }
       }
       default:

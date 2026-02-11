@@ -67,16 +67,19 @@ export class ChatAgent extends Agent<Env, ChatState> {
         const writer = writable.getWriter();
         const encoder = createEncoder();
         (async () => {
-          let fullContent = '';
           try {
             const response = await this.chatHandler!.processMessage(message, this.state.messages, this.state.sessionId, (chunk: string) => {
-              fullContent += chunk;
               writer.write(encoder.encode(chunk));
             });
             const assistantMsg = createMessage('assistant', response.content, response.toolCalls);
             await controller.saveMessage(this.state.sessionId, assistantMsg);
             this.setState({ ...this.state, messages: [...this.state.messages, assistantMsg], isProcessing: false });
-          } catch (err) { console.error('Streaming error:', err); } finally { writer.close(); }
+          } catch (err) { 
+            console.error('Streaming error:', err);
+            this.setState({ ...this.state, isProcessing: false });
+          } finally { 
+            writer.close(); 
+          }
         })();
         return createStreamResponse(readable);
       }
@@ -86,6 +89,7 @@ export class ChatAgent extends Agent<Env, ChatState> {
       this.setState({ ...this.state, messages: [...this.state.messages, assistantMsg], isProcessing: false });
       return Response.json({ success: true, data: this.state });
     } catch (error) {
+      console.error('Chat error:', error);
       this.setState({ ...this.state, isProcessing: false });
       return Response.json({ success: false, error: API_RESPONSES.PROCESSING_ERROR }, { status: 500 });
     }

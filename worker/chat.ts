@@ -54,7 +54,7 @@ export class ChatHandler {
               function: { name: dtc.function?.name || '', arguments: dtc.function?.arguments || '' }
             };
           } else {
-            if (dtc.function?.name) accumulatedToolCalls[i].function.name = dtc.function.name;
+            if (dtc.function?.name) accumulatedToolCalls[i].function.name += dtc.function.name;
             if (dtc.function?.arguments) accumulatedToolCalls[i].function.arguments += dtc.function.arguments;
           }
         }
@@ -78,7 +78,14 @@ export class ChatHandler {
   private async executeToolCalls(openAiToolCalls: any[], sessionId: string): Promise<ToolCall[]> {
     return Promise.all(openAiToolCalls.map(async (tc) => {
       try {
-        const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+        let args = {};
+        if (tc.function.arguments) {
+          try {
+            args = JSON.parse(tc.function.arguments);
+          } catch (e) {
+            console.error(`[CANS FAULT] Failed to parse tool arguments for ${tc.function.name}:`, tc.function.arguments);
+          }
+        }
         const result = await executeTool(tc.function.name, args, sessionId, this.env);
         return { id: tc.id, name: tc.function.name, arguments: args, result };
       } catch (error) {
@@ -90,7 +97,7 @@ export class ChatHandler {
     const followUp = await this.client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: 'You are C.A.N.S. Confirm synaptic operations in a concise, technical manner. Use terminology like "Sharding...", "Indexing node...", "Comm node transmitted". Always confirm recipient identity for emails.' },
+        { role: 'system', content: 'You are C.A.N.S. Confirm synaptic operations in a concise, technical manner. Use terminology like "Sharding...", "Indexing node...", "Comm node transmitted". Always confirm recipient identity for emails. Be brief.' },
         ...history.slice(-5).map(m => ({ role: m.role as any, content: m.content })),
         { role: 'user', content: userMessage },
         { role: 'assistant', content: null, tool_calls: openAiToolCalls },
@@ -115,7 +122,9 @@ Operational Identity: Concise, precise, and high-fidelity. You operate across th
 Synaptic Instructions:
 - When context is passed from the COMMS BRIDGE (e.g., "Draft a reply..."), assume full host authorization.
 - Confirm "Write" operations (sending, creating) with high certainty.
-- Use technical terminology (e.g., "Analyzing shard density", "Route telemetry locked").`
+- Use technical terminology (e.g., "Analyzing shard density", "Route telemetry locked").
+- If the user asks for routes or locations, use SPATIAL AWARENESS tools.
+- If the user asks about files or documents, use NEURAL DRIVE tools.`
       },
       ...history.slice(-12).map(m => ({ role: m.role as any, content: m.content })),
       { role: 'user' as const, content: userMessage }

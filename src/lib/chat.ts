@@ -32,13 +32,33 @@ class ChatService {
         return { success: true };
       }
       return await response.json();
-    } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'Synaptic transmission failure' }; }
+    } catch (error) { 
+      return { success: false, error: error instanceof Error ? error.message : 'Synaptic transmission failure' }; 
+    }
   }
   async getMessages(): Promise<ChatResponse> { try { const r = await fetch(`${this.baseUrl}/messages`); return await r.json(); } catch { return { success: false }; } }
   async getDriveFiles(): Promise<any[]> { try { const r = await fetch(`${this.baseUrl}/drive`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async getDirections(origin: string, destination: string): Promise<any> { try { const r = await fetch(`${this.baseUrl}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`); const j = await r.json(); return j.success ? j.data : null; } catch { return null; } }
-  async getServiceStatus(): Promise<ConnectedService[]> { try { const r = await fetch(`/api/status/services?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async getAuthUrl(service: string): Promise<string | null> { try { const r = await fetch(`/api/auth/google?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data.url : null; } catch { return null; } }
+  async getDirections(origin: string, destination: string): Promise<any> { 
+    try { 
+      const r = await fetch(`${this.baseUrl}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`); 
+      const j = await r.json(); 
+      return j.success ? j.data : null; 
+    } catch { return null; } 
+  }
+  async getServiceStatus(): Promise<ConnectedService[]> { 
+    try { 
+      const r = await fetch(`/api/status/services?sessionId=${this.sessionId}`); 
+      const j = await r.json(); 
+      return j.success ? j.data : []; 
+    } catch { return []; } 
+  }
+  async getAuthUrl(service: string): Promise<string | null> { 
+    try { 
+      const r = await fetch(`/api/auth/google?sessionId=${this.sessionId}`); 
+      const j = await r.json(); 
+      return j.success ? j.data.url : null; 
+    } catch { return null; } 
+  }
   async getEmails(): Promise<GmailMessage[]> { try { const r = await fetch(`${this.baseUrl}/emails`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
   async listSessions(): Promise<SessionInfo[]> { try { const r = await fetch('/api/sessions'); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
   async getMemories(): Promise<any[]> { try { const r = await fetch(`/api/memories?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
@@ -46,6 +66,9 @@ class ChatService {
   async getTasks(): Promise<any[]> { try { const r = await fetch(`/api/tasks?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
   async updateTaskStatus(id: string, s: string): Promise<boolean> { try { const r = await fetch(`/api/tasks/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: s, sessionId: this.sessionId }) }); const j = await r.json(); return !!j.success; } catch { return false; } }
   getSessionId(): string { return this.sessionId; }
+  sendContextualQuery(context: string): void {
+    window.location.href = `/?context=${encodeURIComponent(context)}`;
+  }
 }
 export const chatService = new ChatService();
 export const renderToolCall = (tc: ToolCall): { label: string; data?: any; type: string } => {
@@ -53,10 +76,10 @@ export const renderToolCall = (tc: ToolCall): { label: string; data?: any; type:
   if (!r) return { label: `[PROCESSING] NODE: ${tc.name.toUpperCase()}`, type: 'text' };
   if (r.error) return { label: `[FAULT] ${r.error.toUpperCase()}`, type: 'error' };
   switch (tc.name) {
-    case 'get_emails': 
+    case 'get_emails':
       return { label: `[SYNCED] ${r.emails?.length || 0} COMMS NODES RETRIEVED`, data: r.emails, type: 'emails' };
     case 'send_email':
-      return { label: r.success ? `[SUCCESS] NEURAL DRAFT TRANSMITTED` : `[FAIL] TRANSMISSION ABORTED`, type: 'write-success' };
+      return { label: r.success ? `[SUCCESS] NEURAL PACKET TRANSMITTED` : `[FAIL] TRANSMISSION ABORTED`, type: 'write-success' };
     case 'get_drive_files':
       return { label: `[INDEXED] ${r.files?.length || 0} DRIVE SHARDS DISCOVERED`, data: r.files, type: 'files' };
     case 'get_directions':
