@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TopBar } from "./TopBar";
 import { NeuralBackground } from "@/components/cortex/NeuralBackground";
@@ -20,16 +20,14 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
         <div className="flex h-screen w-full overflow-hidden bg-neural-bg text-foreground relative">
           <NeuralBackground />
           {/* Synaptic Pulse Overlay */}
-          <AnimatePresence>
-            {isProcessing && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 pointer-events-none z-50 bg-bio-cyan/5 shadow-[inset_0_0_100px_rgba(0,212,255,0.1)] transition-colors duration-1000"
-              />
-            )}
-          </AnimatePresence>
+          {isProcessing && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 pointer-events-none z-50 bg-bio-cyan/5 shadow-[inset_0_0_100px_rgba(0,212,255,0.1)] transition-colors duration-1000"
+            />
+          )}
           {/* Left Sidebar (Neural Pathways) */}
           <AppSidebar />
           {/* Center Stage (The Cortex) */}
@@ -61,21 +59,11 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
             </footer>
           </main>
           {/* Right Panel (Peripheral Awareness) */}
-          <AnimatePresence mode="wait">
-            {isPeripheralOpen && peripheral && (
-              <motion.aside
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 320, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="hidden lg:block border-l border-white/5 bg-[#0a0e1a]/40 backdrop-blur-md z-20 overflow-hidden"
-              >
-                <div className="w-[320px] h-full overflow-y-auto no-scrollbar">
-                  {peripheral}
-                </div>
-              </motion.aside>
-            )}
-          </AnimatePresence>
+          <aside className={`border-l border-white/5 bg-[#0a0e1a]/40 backdrop-blur-md z-20 overflow-hidden hidden lg:block transition-all duration-300 ease-in-out shadow-[0_-10px_50px_rgba(0,212,255,0.1)] ${isPeripheralOpen ? 'w-[320px] opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full'}`}>
+            <div className="w-[320px] h-full overflow-y-auto no-scrollbar">
+              {peripheral}
+            </div>
+          </aside>
         </div>
       </SidebarProvider>
     </TooltipProvider>

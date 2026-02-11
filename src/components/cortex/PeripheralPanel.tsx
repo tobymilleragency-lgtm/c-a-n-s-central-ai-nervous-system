@@ -4,7 +4,7 @@ import { NeuralCard } from "@/components/ui/neural-card";
 import { Mail, Calendar, Activity, Clock, UserCircle, ChevronDown } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { ConnectedService, GmailMessage } from "../../../worker/types";
-import { AreaChart, Area, ResponsiveContainer, RadialBarChart, RadialBar } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 export function PeripheralPanel() {
@@ -38,12 +38,7 @@ export function PeripheralPanel() {
     const interval = setInterval(() => fetchData(activeAccount || undefined), 15000);
     return () => clearInterval(interval);
   }, [fetchData, activeAccount]);
-  const activeNode = useMemo(() => services.find(s => s.email === activeAccount), [services, activeAccount]);
   const isGmailConnected = useMemo(() => services.some(s => s.name === 'google' && s.status === 'active'), [services]);
-  const radialData = useMemo(() => [
-    { name: 'Synapse', value: isGmailConnected ? 100 : 30, fill: '#00d4ff' },
-    { name: 'System', value: 100, fill: '#10b981' },
-  ], [isGmailConnected]);
   return (
     <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar">
       {/* Node Selector */}
@@ -88,8 +83,8 @@ export function PeripheralPanel() {
           </h3>
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
-        <div className="h-24 w-full opacity-60">
-          <ResponsiveContainer width="100%" height={96}>
+        <div className="h-32 w-full min-h-32 opacity-80 relative">
+          <ResponsiveContainer width="100%" height="100%" aspect={3}>
             <AreaChart data={telemetry}>
               <defs>
                 <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
