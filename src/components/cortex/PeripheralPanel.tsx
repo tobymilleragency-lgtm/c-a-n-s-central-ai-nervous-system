@@ -53,7 +53,7 @@ export function PeripheralPanel() {
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
         <div className="h-24 w-full opacity-60">
-          <ResponsiveContainer width="100%" height="100%" minHeight={96}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={96} minWidth={120} aspect={undefined}>
             <AreaChart data={telemetry}>
               <defs>
                 <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
@@ -69,7 +69,7 @@ export function PeripheralPanel() {
       {/* Pathway Health */}
       <section className="flex items-center gap-4">
         <div className="h-24 w-24">
-          <ResponsiveContainer width="100%" height="100%" minHeight={96}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={96} minWidth={120} aspect={undefined}>
             <RadialBarChart innerRadius="60%" outerRadius="100%" data={radialData} startAngle={180} endAngle={0}>
               <RadialBar background dataKey="value" cornerRadius={10} />
             </RadialBarChart>

@@ -13,6 +13,7 @@ const pathways = [
   { icon: Database, label: "Knowledge", path: "/knowledge", color: "text-memory-violet" },
   { icon: Clock, label: "Temporal", path: "/temporal", color: "text-memory-violet" },
   { icon: Map, label: "Spatial", path: "/spatial", color: "text-memory-violet" },
+  { icon: Settings, label: "Config", path: "/settings", color: "text-bio-cyan" },
 ];
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
@@ -44,7 +45,7 @@ export function AppSidebar(): JSX.Element {
           <SidebarMenu>
             {pathways.map((item) => {
               const active = location.pathname === item.path;
-              const hasLiveNode = isConnected('gmail') && (item.label === 'Comms' || item.label === 'Neural Drive' || item.label === 'Temporal');
+              const hasLiveNode = isConnected('gmail') && (item.label === 'Comms' || item.label === 'Neural Drive' || item.label === 'Temporal') && item.label !== 'Config';
               return (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton asChild isActive={active} className={cn("group h-11 rounded-xl px-4 mb-1 transition-all", active ? "bg-bio-cyan/10 text-bio-cyan border border-bio-cyan/20" : "text-white/40 hover:bg-white/5")}>
