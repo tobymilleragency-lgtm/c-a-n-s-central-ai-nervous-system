@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -7,7 +7,6 @@ import { NeuralBackground } from "@/components/cortex/NeuralBackground";
 import { PanelRightClose, PanelRightOpen, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 type AppLayoutProps = {
   children: React.ReactNode;
   peripheral?: React.ReactNode;
@@ -34,8 +33,9 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
           {/* Left Sidebar (Neural Pathways) */}
           <AppSidebar />
           {/* Center Stage (The Cortex) */}
-          <main className="relative flex flex-1 flex-col overflow-hidden border-x border-white/5 z-10 bg-transparent">
+          <main className="relative flex flex-1 flex-col h-full overflow-hidden border-x border-white/5 z-10 bg-transparent">
             <TopBar />
+            {/* Peripheral Toggle Trigger */}
             <div className="absolute top-20 right-4 z-50">
               <Button
                 variant="ghost"
@@ -46,13 +46,12 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
                 {isPeripheralOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
               </Button>
             </div>
+            {/* Child Content - Constrained within main view */}
             <div className="flex-1 overflow-hidden relative">
-              <div className="h-full w-full overflow-y-auto no-scrollbar">
-                {children}
-              </div>
+              {children}
             </div>
             {/* AI Usage Disclosure Footer */}
-            <footer className="h-8 border-t border-white/5 bg-[#0a0e1a]/80 backdrop-blur-md flex items-center justify-center px-6 z-40">
+            <footer className="h-10 border-t border-white/5 bg-[#0a0e1a]/80 backdrop-blur-md flex items-center justify-center px-6 z-40">
               <div className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
                 <AlertCircle size={10} className="text-bio-cyan" />
                 <p className="text-[8px] uppercase tracking-[0.2em] font-mono text-white/60">
@@ -65,9 +64,9 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
           <AnimatePresence mode="wait">
             {isPeripheralOpen && peripheral && (
               <motion.aside
-                initial={{ width: 0, opacity: 0, x: 20 }}
-                animate={{ width: 320, opacity: 1, x: 0 }}
-                exit={{ width: 0, opacity: 0, x: 20 }}
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 320, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 className="hidden lg:block border-l border-white/5 bg-[#0a0e1a]/40 backdrop-blur-md z-20 overflow-hidden"
               >

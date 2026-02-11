@@ -36,9 +36,9 @@ export function TopBar() {
   const getStatus = (name: string) => services.find(s => s.name === name);
   return (
     <TooltipProvider>
-      <header className="h-16 border-b border-white/5 bg-[#0a0e1a]/80 backdrop-blur-md flex items-center justify-between px-6 z-40 relative">
+      <header className="h-16 shrink-0 border-b border-white/5 bg-[#0a0e1a]/80 backdrop-blur-xl flex items-center justify-between px-6 z-40 relative">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-white/30 font-bold">Neural Load</span>
+          <span className="text-[10px] uppercase tracking-[0.3em] text-white/30 font-bold hidden sm:inline">Neural Load</span>
           <div className="h-1 w-16 bg-white/5 rounded-full overflow-hidden">
             <div className="h-full bg-bio-cyan w-2/3 animate-pulse shadow-[0_0_10px_#00d4ff]" />
           </div>
@@ -51,8 +51,8 @@ export function TopBar() {
           <h2 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-bio-cyan via-white to-memory-violet">
             C.A.N.S.
           </h2>
-          <div className="h-4 w-[1px] bg-white/10" />
-          <span className="text-[10px] uppercase tracking-widest text-bio-cyan/60 font-mono">Neural OS v1.2</span>
+          <div className="h-4 w-[1px] bg-white/10 hidden md:block" />
+          <span className="text-[10px] uppercase tracking-widest text-bio-cyan/60 font-mono hidden md:block">Neural OS v1.2</span>
         </div>
         <div className="flex items-center gap-4">
           <Orb icon={Mail} service={getStatus('gmail')} label="Gmail Node" color="cyan" connecting={isSyncing} />
@@ -63,29 +63,29 @@ export function TopBar() {
     </TooltipProvider>
   );
 }
-function Orb({ 
-  icon: Icon, 
-  service, 
-  label, 
+function Orb({
+  icon: Icon,
+  service,
+  label,
   color,
-  connecting 
-}: { 
-  icon: any; 
-  service?: ConnectedService; 
-  label: string; 
+  connecting
+}: {
+  icon: any;
+  service?: ConnectedService;
+  label: string;
   color: 'cyan' | 'violet' | 'green';
   connecting?: boolean;
 }) {
   const isActive = service?.status === 'active';
   const colorClasses = {
-    cyan: isActive 
-      ? "border-bio-cyan/40 bg-bio-cyan/10 text-bio-cyan shadow-[0_0_15px_rgba(0,212,255,0.2)]" 
+    cyan: isActive
+      ? "border-bio-cyan/40 bg-bio-cyan/10 text-bio-cyan shadow-[0_0_15px_rgba(0,212,255,0.2)]"
       : "border-white/10 bg-white/5 text-white/20",
-    violet: isActive 
-      ? "border-memory-violet/40 bg-memory-violet/10 text-memory-violet shadow-[0_0_15px_rgba(139,92,246,0.2)]" 
+    violet: isActive
+      ? "border-memory-violet/40 bg-memory-violet/10 text-memory-violet shadow-[0_0_15px_rgba(139,92,246,0.2)]"
       : "border-white/10 bg-white/5 text-white/20",
-    green: isActive 
-      ? "border-[#10b981]/40 bg-[#10b981]/10 text-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.2)]" 
+    green: isActive
+      ? "border-[#10b981]/40 bg-[#10b981]/10 text-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.2)]"
       : "border-white/10 bg-white/5 text-white/20"
   };
   return (
@@ -93,7 +93,7 @@ function Orb({
       <TooltipTrigger asChild>
         <div className="relative cursor-help group">
           <div className={cn(
-            "h-9 w-9 rounded-full border flex items-center justify-center transition-all duration-700",
+            "h-8 w-8 sm:h-9 sm:w-9 rounded-full border flex items-center justify-center transition-all duration-700",
             connecting ? "scale-90 opacity-50 animate-pulse" : "scale-100 opacity-100",
             colorClasses[color],
             isActive && "border-[#10b981]/60 shadow-[0_0_25px_rgba(16,185,129,0.4)]"
@@ -102,8 +102,7 @@ function Orb({
           </div>
           {isActive && (
             <div className={cn(
-              "absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full animate-ping opacity-70",
-              "bg-[#10b981]"
+              "absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full animate-ping opacity-70 bg-[#10b981]"
             )} />
           )}
         </div>

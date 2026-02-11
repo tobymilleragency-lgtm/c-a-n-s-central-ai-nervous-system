@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
-import { Mail, Send, Reply, Archive, Star, Filter, ArrowLeft, BrainCircuit, Sparkles } from "lucide-react";
+import { Mail, Reply, Archive, Star, Filter, ArrowLeft, BrainCircuit, Sparkles } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { useNavigate } from "react-router-dom";
 import { GmailMessage } from "../../worker/types";
@@ -30,13 +30,13 @@ export function CommsPage() {
   };
   return (
     <AppLayout>
-      <div className="h-full flex flex-col">
-        <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-neural-bg/50 backdrop-blur-sm z-10">
+      <div className="h-full flex flex-col bg-transparent">
+        <header className="shrink-0 px-8 py-4 border-b border-white/5 flex items-center justify-between bg-neural-bg/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-bio-cyan/10 border border-bio-cyan/20 flex items-center justify-center">
               <Mail className="text-bio-cyan w-5 h-5" />
             </div>
-            <h1 className="text-xl font-black tracking-tighter">SYNAPTIC COMMS</h1>
+            <h1 className="text-xl font-black tracking-tighter uppercase">SYNAPTIC COMMS</h1>
           </div>
           <div className="flex items-center gap-2">
              <Button variant="outline" size="sm" className="bg-white/5 border-white/10 text-[10px] uppercase font-bold tracking-widest hover:bg-white/10">
@@ -45,7 +45,7 @@ export function CommsPage() {
           </div>
         </header>
         <div className="flex-1 flex overflow-hidden">
-          {/* List */}
+          {/* List - Scrollable Sidebar inside Page */}
           <div className={`flex-1 lg:flex-none lg:w-[400px] overflow-y-auto border-r border-white/5 p-4 space-y-3 no-scrollbar ${selectedId ? 'hidden lg:block' : 'block'}`}>
             {emails.map((email) => (
               <NeuralCard
@@ -63,15 +63,15 @@ export function CommsPage() {
             ))}
           </div>
           {/* Detailed View */}
-          <div className={`flex-1 flex flex-col bg-[#0a0e1a]/20 ${!selectedId ? 'hidden lg:flex items-center justify-center opacity-10' : 'flex'}`}>
+          <div className={`flex-1 flex flex-col bg-neural-bg/10 ${!selectedId ? 'hidden lg:flex items-center justify-center opacity-10' : 'flex'}`}>
             {selectedEmail ? (
               <>
-                <div className="p-4 border-b border-white/5 lg:hidden">
+                <div className="p-4 border-b border-white/5 lg:hidden bg-neural-bg/50">
                   <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
                     <ArrowLeft size={16} className="mr-2" /> Back
                   </Button>
                 </div>
-                <div className="p-10 flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto p-6 md:p-10 no-scrollbar">
                    <div className="max-w-3xl mx-auto space-y-8">
                       <header className="space-y-6">
                         <div className="flex items-start justify-between">
@@ -97,10 +97,10 @@ export function CommsPage() {
                         </div>
                       </NeuralCard>
                       <div className="flex flex-wrap gap-4 pt-4">
-                        <Button onClick={handleAIReply} className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 font-black uppercase tracking-widest text-[10px] px-8 py-6 rounded-xl shadow-glow">
+                        <Button onClick={handleAIReply} className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 font-black uppercase tracking-widest text-[10px] px-8 py-5 rounded-xl shadow-glow">
                           <Reply size={16} className="mr-2" /> AI Synthesis Reply
                         </Button>
-                        <Button onClick={handleAISummarize} variant="outline" className="border-bio-cyan/20 text-bio-cyan hover:bg-bio-cyan/10 font-black uppercase tracking-widest text-[10px] px-8 py-6 rounded-xl">
+                        <Button onClick={handleAISummarize} variant="outline" className="border-bio-cyan/20 text-bio-cyan hover:bg-bio-cyan/10 font-black uppercase tracking-widest text-[10px] px-8 py-5 rounded-xl">
                           <Sparkles size={16} className="mr-2" /> Summarize with Cortex
                         </Button>
                       </div>
