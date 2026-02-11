@@ -14,15 +14,20 @@ export function DrivePage() {
   useEffect(() => { loadFiles(); }, []);
   const loadFiles = async () => {
     setLoading(true);
-    const data = await chatService.getDriveFiles();
-    setFiles(Array.isArray(data) ? data : []);
-    setLoading(false);
+    try {
+      const data = await chatService.getDriveFiles();
+      setFiles(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Failed to load shards:", e);
+    } finally {
+      setLoading(false);
+    }
   };
   const filtered = files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()));
   const stats = useMemo(() => {
     const total = files.length || 1;
-    const docs = files.filter(f => f.mimeType.includes('document')).length;
-    const sheets = files.filter(f => f.mimeType.includes('spreadsheet')).length;
+    const docs = files.filter(f => f.mimeType?.includes('document')).length;
+    const sheets = files.filter(f => f.mimeType?.includes('spreadsheet')).length;
     return {
       docs: (docs / total) * 100,
       sheets: (sheets / total) * 100
@@ -101,13 +106,17 @@ export function DrivePage() {
                       <Button onClick={() => navigate(`/?context=Summarize shard ${file.name}`)} size="icon" variant="ghost" className="h-8 w-8 text-bio-cyan/40 hover:text-bio-cyan">
                         <Sparkles size={16} />
                       </Button>
-                      <a href={file.webkitLink} target="_blank" rel="noreferrer" className="p-2 rounded-lg text-white/20 hover:text-white transition-colors">
-                        <ExternalLink size={16} />
-                      </a>
+                      {file.webViewLink && (
+                        <a href={file.webViewLink} target="_blank" rel="noreferrer" className="p-2 rounded-lg text-white/20 hover:text-white transition-colors h-8 w-8 flex items-center justify-center">
+                          <ExternalLink size={16} />
+                        </a>
+                      )}
                     </div>
                   </div>
-                  <h3 className="text-sm font-black text-white/90 truncate mb-1 uppercase tracking-tight">{file.name}</h3>
-                  <p className="text-[10px] text-white/30 font-mono uppercase truncate mt-auto pt-4">TYPE: {file.mimeType.split('.').pop()}</p>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-black text-white/90 truncate mb-1 uppercase tracking-tight">{file.name}</h3>
+                    <p className="text-[10px] text-white/30 font-mono uppercase truncate mt-auto">TYPE: {file.mimeType?.split('.').pop() || 'UNKNOWN'}</p>
+                  </div>
                 </NeuralCard>
               ))}
             </div>

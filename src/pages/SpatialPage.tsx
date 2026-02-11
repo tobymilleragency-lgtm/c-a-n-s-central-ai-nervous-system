@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,8 @@ export function SpatialPage() {
     setLoading(true);
     try {
       const data = await chatService.getDirections(origin, dest);
-      // Update to handle structured route object from worker/tools.ts
-      setRoute(data?.route || null);
+      // The service already returns the route object if successful
+      setRoute(data || null);
     } catch (error) {
       setRoute(null);
     } finally {
@@ -75,13 +75,12 @@ export function SpatialPage() {
           </div>
         </header>
         <div className="flex-1 relative bg-[#0a0e1a] overflow-hidden">
-          {/* Radar Visualization */}
           <div className="absolute inset-0 opacity-20 pointer-events-none">
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-[800px] h-[800px] border border-bio-cyan/20 rounded-full relative">
                 <div className="absolute inset-0 border border-bio-cyan/10 rounded-full scale-75" />
                 <div className="absolute inset-0 border border-bio-cyan/5 rounded-full scale-50" />
-                <motion.div 
+                <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
                   className="absolute inset-0 flex items-center justify-center"
@@ -104,7 +103,7 @@ export function SpatialPage() {
               </div>
             ) : (
               <div className="w-full h-full relative p-20">
-                <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute top-[20%] left-[30%]">
+                <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute top-[25%] left-[20%]">
                   <NeuralCard className="p-4 w-56 shadow-glow animate-float-slow bg-bio-cyan/5 border-bio-cyan/20">
                     <div className="flex items-center gap-2 mb-2">
                       <MapPin size={16} className="text-bio-cyan" />
@@ -114,7 +113,7 @@ export function SpatialPage() {
                     <p className="text-[8px] font-mono text-white/30 mt-2 uppercase">COORD: 40.7128° N, 74.0060° W</p>
                   </NeuralCard>
                 </motion.div>
-                <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5 }} className="absolute bottom-[30%] right-[25%]">
+                <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5 }} className="absolute bottom-[25%] right-[20%]">
                   <NeuralCard className="p-4 w-56 shadow-glow-violet animate-float-slow bg-memory-violet/5 border-memory-violet/20" style={{ animationDelay: '2s' }}>
                     <div className="flex items-center gap-2 mb-2">
                       <Zap size={16} className="text-memory-violet" />
@@ -124,14 +123,13 @@ export function SpatialPage() {
                     <p className="text-[8px] font-mono text-white/30 mt-2 uppercase">DISTANCE: 2.4K SHARDS</p>
                   </NeuralCard>
                 </motion.div>
-                {/* Animated Path SVG */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40">
+                <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 1000 1000">
                   <motion.path
-                    d="M 350 250 Q 500 500 650 450"
+                    d="M 300 350 Q 500 500 700 650"
                     fill="none"
                     stroke="#00d4ff"
                     strokeWidth="2"
-                    strokeDasharray="5,5"
+                    strokeDasharray="10,10"
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: 1 }}
                     transition={{ duration: 2, ease: "easeInOut" }}

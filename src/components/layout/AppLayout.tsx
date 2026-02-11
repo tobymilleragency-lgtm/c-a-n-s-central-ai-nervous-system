@@ -32,15 +32,15 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
           {/* Left Sidebar (Neural Pathways) */}
           <AppSidebar />
           {/* Center Stage (The Cortex) */}
-          <main className="relative flex flex-1 flex-col h-full overflow-hidden border-x border-white/5 z-10 bg-transparent">
+          <main className="relative flex flex-1 flex-col h-full overflow-hidden border-x border-white/5 z-10 bg-transparent transition-all duration-300">
             <TopBar />
-            {/* Peripheral Toggle Trigger */}
-            <div className="absolute top-20 right-4 z-50">
+            {/* Peripheral Toggle Trigger - Positioned below TopBar with high z-index */}
+            <div className="absolute top-[72px] right-4 z-[60]">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsPeripheralOpen(!isPeripheralOpen)}
-                className="text-bio-cyan/50 hover:text-bio-cyan hover:bg-bio-cyan/10 backdrop-blur-sm rounded-full"
+                className="text-bio-cyan/50 hover:text-bio-cyan hover:bg-bio-cyan/10 backdrop-blur-sm rounded-full bg-neural-bg/40 border border-white/5"
               >
                 {isPeripheralOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
               </Button>
@@ -50,7 +50,7 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
               {children}
             </div>
             {/* AI Usage Disclosure Footer */}
-            <footer className="h-10 border-t border-white/5 bg-[#0a0e1a]/80 backdrop-blur-md flex items-center justify-center px-6 z-40">
+            <footer className="h-10 border-t border-white/5 bg-[#0a0e1a]/95 backdrop-blur-md flex items-center justify-center px-6 z-40">
               <div className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
                 <AlertCircle size={10} className="text-bio-cyan" />
                 <p className="text-[8px] uppercase tracking-[0.2em] font-mono text-white/60">
@@ -60,8 +60,11 @@ export function AppLayout({ children, peripheral, isProcessing = false }: AppLay
             </footer>
           </main>
           {/* Right Panel (Peripheral Awareness) */}
-          <aside className={cn("border-l border-white/5 bg-[#0a0e1a]/40 backdrop-blur-md z-20 overflow-hidden lg:block transition-all duration-300 ease-in-out shadow-[0_-10px_50px_rgba(0,212,255,0.1)]", isPeripheralOpen ? 'w-[320px] opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-full')}>
-            <div className="w-full h-full overflow-y-auto no-scrollbar">
+          <aside className={cn(
+            "border-l border-white/5 bg-[#0a0e1a]/40 backdrop-blur-md z-20 overflow-hidden lg:block transition-all duration-300 ease-in-out shadow-[0_-10px_50px_rgba(0,212,255,0.1)]", 
+            isPeripheralOpen ? 'w-[320px] opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-full'
+          )}>
+            <div className="w-[320px] h-full overflow-y-auto no-scrollbar">
               {peripheral}
             </div>
           </aside>

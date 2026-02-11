@@ -34,9 +34,8 @@ export function ChatInterface() {
   const scrollToBottom = useCallback((force = false) => {
     if (scrollRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      const threshold = 400;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
-      if (force || isAtBottom) {
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 500;
+      if (force || isNearBottom) {
         scrollRef.current.scrollTo({
           top: scrollHeight,
           behavior: force ? 'auto' : 'smooth'
@@ -49,13 +48,14 @@ export function ChatInterface() {
     setInput("");
     setIsLoading(true);
     setStreamingMessage("");
-    // Passing onChunk callback for real-time streaming updates
+    // Smooth scroll as response starts
+    setTimeout(() => scrollToBottom(true), 100);
     const res = await chatService.sendMessage(text, undefined, (chunk) => {
       setStreamingMessage(prev => prev + chunk);
       scrollToBottom();
     });
     if (res.success) {
-      setStreamingMessage("");
+      setStreamingMessage(""); // Clear before load to prevent flicker
       await loadMessages();
     }
     setIsLoading(false);
@@ -75,7 +75,7 @@ export function ChatInterface() {
   }, [messages, streamingMessage, isLoading, scrollToBottom]);
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden">
-      <div className="sticky top-0 left-0 right-0 flex justify-between items-center py-4 border-b border-white/5 bg-neural-bg/80 backdrop-blur-xl z-30">
+      <div className="sticky top-0 left-0 right-0 flex justify-between items-center py-4 border-b border-white/5 bg-neural-bg/80 backdrop-blur-xl z-30 px-2">
         <div className="flex items-center gap-3">
            <div className="h-2 w-2 rounded-full bg-bio-cyan shadow-[0_0_10px_#00d4ff] animate-pulse" />
            <span className="text-[10px] font-black tracking-[0.3em] text-bio-cyan uppercase">{getContextName()}</span>
@@ -86,7 +86,7 @@ export function ChatInterface() {
           <span>STATUS: {isLoading ? 'PROCESSING' : 'SYNCED'}</span>
         </div>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar py-8 md:py-10 lg:py-12 pb-44">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar py-8 md:py-10 lg:py-12 pb-48">
         <div className="max-w-4xl mx-auto space-y-12">
           {messages.length === 0 && !streamingMessage && (
             <div className="flex flex-col items-center justify-center text-center space-y-8 opacity-40 py-24 min-h-[40vh]">
@@ -108,7 +108,7 @@ export function ChatInterface() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className={cn("flex items-start gap-4", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}
+              className={cn("flex items-start gap-4 px-2", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}
             >
               <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0", msg.role === 'user' ? "border-alert-pink/20 bg-alert-pink/5" : "border-bio-cyan/20 bg-bio-cyan/5 shadow-glow")}>
                 {msg.role === 'user' ? <User size={18} className="text-alert-pink" /> : <Sparkles size={18} className="text-bio-cyan" />}
@@ -133,9 +133,8 @@ export function ChatInterface() {
               </div>
             </motion.div>
           ))}
-          {/* Streaming Message Implementation */}
           {streamingMessage && (
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-4 px-2">
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center border border-bio-cyan/20 bg-bio-cyan/5 shadow-glow shrink-0">
                 <Sparkles size={18} className="text-bio-cyan animate-pulse" />
               </div>
@@ -154,7 +153,7 @@ export function ChatInterface() {
             </div>
           )}
           {isLoading && !streamingMessage && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 px-2">
               <div className="w-10 h-10 rounded-2xl bg-bio-cyan/5 border border-bio-cyan/20 flex items-center justify-center">
                 <Loader2 size={18} className="text-bio-cyan animate-spin" />
               </div>
@@ -172,11 +171,11 @@ export function ChatInterface() {
           )}
         </div>
       </div>
-      <div className="absolute bottom-12 left-0 right-0 pointer-events-none z-40">
+      <div className="absolute bottom-14 left-0 right-0 pointer-events-none z-40">
         <div className="max-w-4xl mx-auto w-full pointer-events-auto">
           <div className="relative group px-6 sm:px-0">
             <div className="absolute -inset-1 bg-gradient-to-r from-bio-cyan to-memory-violet rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition duration-700" />
-            <NeuralCard className="relative p-1.5 pr-3 flex items-center gap-2 bg-[#0a0e1a]/90 backdrop-blur-2xl border-white/10 focus-within:border-bio-cyan/40">
+            <NeuralCard className="relative p-1.5 pr-3 flex items-center gap-2 bg-[#0a0e1a]/95 backdrop-blur-2xl border-white/10 focus-within:border-bio-cyan/40">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
