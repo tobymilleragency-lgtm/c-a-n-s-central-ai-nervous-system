@@ -1,6 +1,6 @@
 # Cloudflare Workers AI Chat Agent
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/tobymilleragency-lgtm/c-a-n-s-central-ai-nervous-system)
 
 A production-ready **Cloudflare Workers** template for building AI-powered chat applications. Features persistent multi-session chat with streaming responses, tool calling (weather, web search, MCP integration), and a modern React frontend. Powered by Cloudflare's Durable Objects, Agents SDK, and AI Gateway.
 
@@ -97,7 +97,7 @@ Chat payload: `{message, model?, stream?}`
 3. **Custom Domain**: Add in Workers dashboard
 4. **Environment Vars**: Set in dashboard under "Settings > Variables"
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/tobymilleragency-lgtm/c-a-n-s-central-ai-nervous-system)
 
 ## 🤝 Contributing
 
