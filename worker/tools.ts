@@ -1,17 +1,78 @@
 import type { WeatherResult, ErrorResult, GmailMessage } from './types';
 import { mcpManager } from './mcp-client';
 import { getAppController } from './core-utils';
-export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | { events: any[] } | { success: boolean, id?: string } | ErrorResult;
+export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | { events: any[] } | { files: any[] } | { success: boolean, id?: string } | { route: any } | ErrorResult;
+async function getGoogleAccessToken(sessionId: string, env: any): Promise<string> {
+  const controller = getAppController(env);
+  const tokens = await (controller as any).ctx.storage.get(`tokens:${sessionId}:gmail`);
+  if (!tokens) throw new Error("Google account not linked. Please connect in Settings.");
+  if (tokens.expiry_date && Date.now() > tokens.expiry_date - 60000 && tokens.refresh_token) {
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: env.GOOGLE_CLIENT_ID,
+        client_secret: env.GOOGLE_CLIENT_SECRET,
+        refresh_token: tokens.refresh_token,
+        grant_type: 'refresh_token'
+      })
+    });
+    const newTokens = await response.json() as any;
+    if (newTokens.access_token) {
+      const updated = {
+        ...tokens,
+        access_token: newTokens.access_token,
+        expiry_date: Date.now() + (newTokens.expires_in * 1000)
+      };
+      await (controller as any).saveServiceTokens(sessionId, 'gmail', updated);
+      return newTokens.access_token;
+    }
+  }
+  return tokens.access_token;
+}
 const customTools = [
   {
     type: 'function' as const,
     function: {
-      name: 'get_weather',
-      description: 'Get current weather information for a location',
+      name: 'send_email',
+      description: 'Send an email to a recipient',
       parameters: {
         type: 'object',
-        properties: { location: { type: 'string', description: 'The city or location name' } },
-        required: ['location']
+        properties: {
+          to: { type: 'string', description: 'Email address of the recipient' },
+          subject: { type: 'string', description: 'Subject of the email' },
+          body: { type: 'string', description: 'Body content of the email' }
+        },
+        required: ['to', 'subject', 'body']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_drive_files',
+      description: 'List files from Google Drive',
+      parameters: {
+        type: 'object',
+        properties: {
+          pageSize: { type: 'number', description: 'Number of files to return' },
+          query: { type: 'string', description: 'Search query' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_directions',
+      description: 'Get directions between two locations',
+      parameters: {
+        type: 'object',
+        properties: {
+          origin: { type: 'string' },
+          destination: { type: 'string' }
+        },
+        required: ['origin', 'destination']
       }
     }
   },
@@ -19,13 +80,10 @@ const customTools = [
     type: 'function' as const,
     function: {
       name: 'get_emails',
-      description: 'Retrieve recent emails from the users connected Gmail account',
+      description: 'Retrieve recent emails from Gmail',
       parameters: {
         type: 'object',
-        properties: {
-          count: { type: 'number', description: 'Number of emails to fetch (default 5)' },
-          query: { type: 'string', description: 'Search query to filter emails' }
-        }
+        properties: { count: { type: 'number' }, query: { type: 'string' } }
       }
     }
   },
@@ -33,43 +91,10 @@ const customTools = [
     type: 'function' as const,
     function: {
       name: 'get_calendar_events',
-      description: 'Retrieve upcoming calendar events and meetings from Google Calendar',
+      description: 'Retrieve upcoming calendar events',
       parameters: {
         type: 'object',
-        properties: {
-          maxResults: { type: 'number', description: 'Number of events to fetch (default 5)' },
-          timeMin: { type: 'string', description: 'ISO start date for fetching events' }
-        }
-      }
-    }
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'store_knowledge_node',
-      description: 'Commit a significant piece of information to long-term synaptic memory',
-      parameters: {
-        type: 'object',
-        properties: {
-          content: { type: 'string', description: 'The information to be remembered' },
-          category: { type: 'string', enum: ['Personal', 'Project', 'Global'], description: 'Category of knowledge' }
-        },
-        required: ['content', 'category']
-      }
-    }
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'schedule_temporal_task',
-      description: 'Schedule a new task or follow-up in the system timeline',
-      parameters: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', description: 'The task description' },
-          priority: { type: 'string', enum: ['low', 'medium', 'high'], default: 'medium' }
-        },
-        required: ['title']
+        properties: { maxResults: { type: 'number' } }
       }
     }
   }
@@ -78,61 +103,63 @@ export async function getToolDefinitions() {
   const mcpTools = await mcpManager.getToolDefinitions();
   return [...customTools, ...mcpTools];
 }
-export async function fetchGmailMessages(sessionId: string, count: number = 5): Promise<GmailMessage[] | { error: string }> {
-    return [
-        { id: '1', threadId: 't1', sender: 'Neural Arch <system@cans.io>', subject: 'Synaptic Protocol Update', date: '2 mins ago', snippet: 'The bridge between your cortex and Gmail has been established.' },
-        { id: '2', threadId: 't2', sender: 'Marcus Chen <marcus@pioneer.com>', subject: 'Project Phoenix Status', date: '1 hour ago', snippet: 'The temporal mapping is complete.' },
-        { id: '3', threadId: 't3', sender: 'Sarah Jenkins <sarah@hr.global>', subject: 'Interview Schedule: AI Reflexes', date: '3 hours ago', snippet: 'I have scheduled three candidates...' }
-    ].slice(0, count);
-}
-export async function fetchCalendarEvents(sessionId: string, maxResults: number = 5): Promise<any[] | { error: string }> {
-  return [
-    { title: "Neural Sync: Core Architecture", time: "14:30", type: "Sync" },
-    { title: "Security Audit: Immune System", time: "16:00", type: "Security" },
-    { title: "Deep Thought: Long-Term Memory", time: "18:00", type: "Maintenance" }
-  ].slice(0, maxResults);
-}
 export async function executeTool(name: string, args: Record<string, unknown>, sessionId: string = 'default', env: any): Promise<ToolResult> {
   try {
     const controller = getAppController(env);
     switch (name) {
-      case 'get_weather':
-        return {
-          location: args.location as string,
-          temperature: Math.floor(Math.random() * 40) - 10,
-          condition: ['Sunny', 'Cloudy', 'Rainy', 'Snowy'][Math.floor(Math.random() * 4)],
-          humidity: Math.floor(Math.random() * 100)
-        };
       case 'get_emails': {
-        const count = (args.count as number) || 5;
-        const emails = await fetchGmailMessages(sessionId, count);
-        if ('error' in emails) return { error: emails.error };
+        const token = await getGoogleAccessToken(sessionId, env);
+        const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${args.count || 5}${args.query ? `&q=${encodeURIComponent(args.query as string)}` : ''}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json() as any;
+        const emails = await Promise.all((data.messages || []).map(async (m: any) => {
+          const detail = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}`, { headers: { Authorization: `Bearer ${token}` } });
+          const json = await detail.json() as any;
+          const headers = json.payload.headers;
+          return {
+            id: json.id,
+            subject: headers.find((h: any) => h.name === 'Subject')?.value || 'No Subject',
+            sender: headers.find((h: any) => h.name === 'From')?.value || 'Unknown',
+            date: headers.find((h: any) => h.name === 'Date')?.value || '',
+            snippet: json.snippet
+          };
+        }));
         return { emails };
       }
+      case 'send_email': {
+        const token = await getGoogleAccessToken(sessionId, env);
+        const utf8Subject = `=?utf-8?B?${btoa(args.subject as string)}?=`;
+        const str = [`To: ${args.to}`, `Subject: ${utf8Subject}`, "Content-Type: text/html; charset=utf-8", "MIME-Version: 1.0", "", args.body].join("\n");
+        const encodedMail = btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw: encodedMail })
+        });
+        return { success: res.ok };
+      }
+      case 'get_drive_files': {
+        const token = await getGoogleAccessToken(sessionId, env);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?pageSize=${args.pageSize || 10}&fields=files(id,name,mimeType,webkitLink)`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json() as any;
+        return { files: data.files || [] };
+      }
+      case 'get_directions': {
+        return { route: { origin: args.origin, destination: args.destination, steps: ["Analyze terrain", "Calibrate synaptic route", "Optimizing for neural speed"] } };
+      }
       case 'get_calendar_events': {
-        const maxResults = (args.maxResults as number) || 5;
-        const events = await fetchCalendarEvents(sessionId, maxResults);
-        if ('error' in events) return { error: events.error };
-        return { events };
-      }
-      case 'store_knowledge_node': {
-        await controller.addMemory(sessionId, {
-          content: args.content as string,
-          category: args.category as string
+        const token = await getGoogleAccessToken(sessionId, env);
+        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=${args.maxResults || 5}&timeMin=${new Date().toISOString()}`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        return { success: true };
+        const data = await res.json() as any;
+        return { events: (data.items || []).map((e: any) => ({ title: e.summary, time: e.start?.dateTime || e.start?.date, type: 'Event' })) };
       }
-      case 'schedule_temporal_task': {
-        await controller.createTask(sessionId, {
-          title: args.title as string,
-          status: 'pending'
-        });
-        return { success: true };
-      }
-      default: {
-        const content = await mcpManager.executeTool(name, args);
-        return { content };
-      }
+      default:
+        return { content: await mcpManager.executeTool(name, args) };
     }
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Unknown error' };
