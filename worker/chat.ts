@@ -15,13 +15,23 @@ export class ChatHandler {
     const messages = this.buildConversationMessages(message, history);
     const toolDefinitions = await getToolDefinitions();
     if (onChunk) {
-      const stream = await this.client.chat.completication.create({
-        model: this.model, messages, tools: toolDefinitions, tool_choice: 'auto', max_completion_tokens: 16000, stream: true,
+      const stream = await this.client.chat.completions.create({
+        model: this.model,
+        messages,
+        tools: toolDefinitions as any,
+        tool_choice: 'auto',
+        max_completion_tokens: 16000,
+        stream: true,
       });
       return this.handleStreamResponse(stream, message, history, sessionId, onChunk);
     }
     const completion = await this.client.chat.completions.create({
-      model: this.model, messages, tools: toolDefinitions, tool_choice: 'auto', max_tokens: 16000, stream: false
+      model: this.model,
+      messages,
+      tools: toolDefinitions as any,
+      tool_choice: 'auto',
+      max_tokens: 16000,
+      stream: false
     });
     return this.handleNonStreamResponse(completion, message, history, sessionId);
   }
@@ -30,12 +40,19 @@ export class ChatHandler {
     const accumulatedToolCalls: ChatCompletionMessageFunctionToolCall[] = [];
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta;
-      if (delta?.content) { fullContent += delta.content; onChunk(delta.content); }
+      if (delta?.content) {
+        fullContent += delta.content;
+        onChunk(delta.content);
+      }
       if (delta?.tool_calls) {
         for (const dtc of delta.tool_calls) {
           const i = dtc.index;
           if (!accumulatedToolCalls[i]) {
-            accumulatedToolCalls[i] = { id: dtc.id || `tool_${i}`, type: 'function', function: { name: dtc.function?.name || '', arguments: dtc.function?.arguments || '' } };
+            accumulatedToolCalls[i] = {
+              id: dtc.id || `tool_${i}`,
+              type: 'function',
+              function: { name: dtc.function?.name || '', arguments: dtc.function?.arguments || '' }
+            };
           } else {
             if (dtc.function?.name) accumulatedToolCalls[i].function.name = dtc.function.name;
             if (dtc.function?.arguments) accumulatedToolCalls[i].function.arguments += dtc.function.arguments;
@@ -64,7 +81,9 @@ export class ChatHandler {
         const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
         const result = await executeTool(tc.function.name, args, sessionId, this.env);
         return { id: tc.id, name: tc.function.name, arguments: args, result };
-      } catch (error) { return { id: tc.id, name: tc.function.name, arguments: {}, result: { error: `Execution failure at node ${tc.function.name}.` } }; }
+      } catch (error) {
+        return { id: tc.id, name: tc.function.name, arguments: {}, result: { error: `Execution failure at node ${tc.function.name}.` } };
+      }
     }));
   }
   private async generateToolResponse(userMessage: string, history: Message[], openAiToolCalls: any[], toolResults: ToolCall[]): Promise<string> {
@@ -72,7 +91,7 @@ export class ChatHandler {
       model: this.model,
       messages: [
         { role: 'system', content: 'You are C.A.N.S. Confirm synaptic operations in a concise, technical manner. Use terminology like "Sharding...", "Indexing node...", "Comm node transmitted". Always confirm recipient identity for emails.' },
-        ...history.slice(-5).map(m => ({ role: m.role, content: m.content })),
+        ...history.slice(-5).map(m => ({ role: m.role as any, content: m.content })),
         { role: 'user', content: userMessage },
         { role: 'assistant', content: null, tool_calls: openAiToolCalls },
         ...toolResults.map((result, index) => ({
@@ -98,7 +117,7 @@ Synaptic Instructions:
 - Confirm "Write" operations (sending, creating) with high certainty.
 - Use technical terminology (e.g., "Analyzing shard density", "Route telemetry locked").`
       },
-      ...history.slice(-12).map(m => ({ role: m.role, content: m.content })),
+      ...history.slice(-12).map(m => ({ role: m.role as any, content: m.content })),
       { role: 'user' as const, content: userMessage }
     ];
   }

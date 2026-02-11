@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { chatService, renderToolCall } from "@/lib/chat";
-import { Message, GmailMessage } from "../../../worker/types";
+import { Message } from "../../../worker/types";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Loader2, User, Mail, Zap, BrainCircuit, CheckCircle, FileText, ArrowUpRight } from "lucide-react";
+import { Send, Sparkles, Loader2, User, Zap, BrainCircuit, CheckCircle, FileText, ArrowUpRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -15,28 +15,15 @@ export function ChatInterface() {
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const getContextName = () => {
+  const getContextName = useCallback(() => {
     const paths: Record<string, string> = { '/': 'CORE CORTEX', '/comms': 'COMMS BRIDGE', '/knowledge': 'KNOWLEDGE VAULT', '/temporal': 'TEMPORAL SYNC' };
     return paths[location.pathname] || 'SYSTEM';
-  };
-  useEffect(() => { loadMessages(); }, [location]);
-  useEffect(() => {
-    const context = searchParams.get('context');
-    if (context) {
-      handleSend(context);
-      setSearchParams({});
-    }
-  }, [searchParams]);
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, isLoading]);
-  const loadMessages = async () => {
+  }, [location.pathname]);
+  const loadMessages = useCallback(async () => {
     const res = await chatService.getMessages();
     if (res.success && res.data) setMessages(res.data.messages);
-  };
-  const handleSend = async (overrideText?: string) => {
+  }, []);
+  const handleSend = useCallback(async (overrideText?: string) => {
     const text = overrideText || input;
     if (!text.trim() || isLoading) return;
     if (!overrideText) setInput("");
@@ -44,8 +31,22 @@ export function ChatInterface() {
     const res = await chatService.sendMessage(text);
     if (res.success) await loadMessages();
     setIsLoading(false);
-  };
-  const [expandedTool, setExpandedTool] = useState<string | null>(null);
+  }, [input, isLoading, loadMessages]);
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages, location.pathname]);
+  useEffect(() => {
+    const context = searchParams.get('context');
+    if (context) {
+      handleSend(context);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, handleSend, setSearchParams]);
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isLoading]);
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto px-4 py-8 relative">
       {/* Context Header */}
@@ -73,7 +74,7 @@ export function ChatInterface() {
             </div>
           </div>
         )}
-        {messages.map((msg, idx) => (
+        {messages.map((msg) => (
           <motion.div key={msg.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={cn("flex items-start gap-4", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
             <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0 transition-transform duration-500", msg.role === 'user' ? "border-alert-pink/20 bg-alert-pink/5" : "border-bio-cyan/20 bg-bio-cyan/5 shadow-glow")}>
               {msg.role === 'user' ? <User size={18} className="text-alert-pink" /> : <Sparkles size={18} className="text-bio-cyan" />}
@@ -117,11 +118,11 @@ export function ChatInterface() {
             </div>
             <div className="flex gap-2">
               {[0, 1, 2].map(i => (
-                <motion.div 
-                  key={i} 
+                <motion.div
+                  key={i}
                   animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
                   transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
-                  className="w-2 h-2 bg-bio-cyan rounded-full shadow-[0_0_10px_#00d4ff]" 
+                  className="w-2 h-2 bg-bio-cyan rounded-full shadow-[0_0_10px_#00d4ff]"
                 />
               ))}
             </div>
