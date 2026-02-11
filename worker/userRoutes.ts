@@ -27,8 +27,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
         const scopes = [
             'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/gmail.send',
             'https://www.googleapis.com/auth/calendar.readonly',
-            'https://www.googleapis.com/auth/userinfo.email'
+            'https://www.googleapis.com/auth/calendar.events',
+            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile'
         ].join(' ');
         const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${sessionId}&access_type=offline&prompt=consent`;
         return c.json({ success: true, data: { url } });
@@ -54,23 +58,34 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             });
             const tokens = await tokenResponse.json() as any;
             if (tokens.error) throw new Error(tokens.error_description || tokens.error);
+            const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                headers: { Authorization: `Bearer ${tokens.access_token}` }
+            });
+            const userData = await userResponse.json() as any;
+            const email = userData.email;
             const controller = getAppController(c.env);
-            await controller.saveServiceTokens(sessionId, 'gmail', {
+            await controller.saveServiceTokens(sessionId, 'google', {
                 access_token: tokens.access_token,
                 refresh_token: tokens.refresh_token,
                 expiry_date: Date.now() + (tokens.expires_in * 1000),
                 scopes: tokens.scope?.split(' ') || []
-            });
+            }, email);
             return c.html(`
                 <html>
-                    <body style="background: #0a0e1a; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white;">
+                    <body style="background: #0a0e1a; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif;">
                         <script>
-                            window.opener.postMessage({ type: 'AUTH_SUCCESS', service: 'gmail' }, '*');
-                            setTimeout(() => window.close(), 1000);
+                            window.opener.postMessage({ 
+                                type: 'AUTH_SUCCESS', 
+                                service: 'google', 
+                                email: '${email}',
+                                status: 'active' 
+                            }, '*');
+                            setTimeout(() => window.close(), 1200);
                         </script>
-                        <div style="font-family: sans-serif; text-align: center; border: 1px solid rgba(0,212,255,0.2); padding: 40px; border-radius: 20px; background: rgba(0,212,255,0.05);">
-                            <h2 style="color: #10b981; text-transform: uppercase; letter-spacing: 0.2em;">Synaptic Link Established</h2>
-                            <p style="color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 10px;">NEURAL PATHWAY SYNCED. CLOSING WINDOW...</p>
+                        <div style="text-align: center; border: 1px solid rgba(0,212,255,0.2); padding: 40px; border-radius: 20px; background: rgba(0,212,255,0.05); max-width: 400px;">
+                            <h2 style="color: #10b981; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 10px;">Synaptic Link Established</h2>
+                            <p style="color: white; font-weight: bold; margin: 10px 0;">${email}</p>
+                            <p style="color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 20px;">NEURAL PATHWAY SYNCED. RETURNING TO CORE...</p>
                         </div>
                     </body>
                 </html>
@@ -84,10 +99,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         const sessionId = c.req.query('sessionId') || 'default';
         const controller = getAppController(c.env);
         const services = await controller.listConnectedServices(sessionId);
-        return c.json({ 
-            success: true, 
+        return c.json({
+            success: true,
             data: services,
-            meta: { latency: `${(Math.random() * 0.5).toFixed(2)}ms`, status: "SYNCED" } 
+            meta: { latency: `${(Math.random() * 0.5).toFixed(2)}ms`, status: "SYNCED" }
         });
     });
     app.get('/api/sessions', async (c) => {

@@ -7,33 +7,43 @@ export class ChatHandler {
   private model: string;
   private env: any;
   constructor(aiGatewayUrl: string, apiKey: string, model: string, env: any) {
-    this.client = new OpenAI({ baseURL: aiGatewayUrl, apiKey: apiKey });
-    this.model = model;
+    this.client = new OpenAI({ 
+      baseURL: aiGatewayUrl, 
+      apiKey: apiKey,
+      defaultHeaders: {
+        'cf-aig-cache': 'true'
+      }
+    });
+    // Ensure we use a model compatible with the AI Gateway and our tool definitions
+    this.model = model.includes('gemini') ? '@cf/google/gemini-1.5-flash' : model;
     this.env = env;
   }
   async processMessage(message: string, history: Message[], sessionId: string, onChunk?: (chunk: string) => void): Promise<{ content: string; toolCalls?: ToolCall[]; }> {
     const messages = this.buildConversationMessages(message, history);
     const toolDefinitions = await getToolDefinitions();
-    if (onChunk) {
-      const stream = await this.client.chat.completions.create({
+    try {
+      if (onChunk) {
+        const stream = await this.client.chat.completions.create({
+          model: this.model,
+          messages: messages as any,
+          tools: toolDefinitions as any,
+          tool_choice: 'auto',
+          stream: true,
+        });
+        return this.handleStreamResponse(stream, message, history, sessionId, onChunk);
+      }
+      const completion = await this.client.chat.completions.create({
         model: this.model,
-        messages,
+        messages: messages as any,
         tools: toolDefinitions as any,
         tool_choice: 'auto',
-        max_completion_tokens: 16000,
-        stream: true,
+        stream: false
       });
-      return this.handleStreamResponse(stream, message, history, sessionId, onChunk);
+      return this.handleNonStreamResponse(completion, message, history, sessionId);
+    } catch (error) {
+      console.error("[CORTEX FAULT] SDK Execution Error:", error);
+      return { content: `Neural processing failure: ${error instanceof Error ? error.message : 'Unknown exception'}` };
     }
-    const completion = await this.client.chat.completions.create({
-      model: this.model,
-      messages,
-      tools: toolDefinitions as any,
-      tool_choice: 'auto',
-      max_tokens: 16000,
-      stream: false
-    });
-    return this.handleNonStreamResponse(completion, message, history, sessionId);
   }
   private async handleStreamResponse(stream: any, message: string, history: Message[], sessionId: string, onChunk: (chunk: string) => void) {
     let fullContent = '';
@@ -104,8 +114,7 @@ export class ChatHandler {
         ...toolResults.map((result, index) => ({
           role: 'tool' as const, content: JSON.stringify(result.result), tool_call_id: openAiToolCalls[index]?.id || result.id
         }))
-      ],
-      max_tokens: 4000
+      ]
     });
     return followUp.choices[0]?.message?.content || 'Synaptic cycle finalized.';
   }
@@ -121,7 +130,6 @@ Operational Identity: Concise, precise, and high-fidelity. You operate across th
 4. TEMPORAL SYNC: Maintain the task timeline and calendar nodes.
 Synaptic Instructions:
 - When context is passed from the COMMS BRIDGE (e.g., "Draft a reply..."), assume full host authorization.
-- Confirm "Write" operations (sending, creating) with high certainty.
 - Use technical terminology (e.g., "Analyzing shard density", "Route telemetry locked").
 - If the user asks for routes or locations, use SPATIAL AWARENESS tools.
 - If the user asks about files or documents, use NEURAL DRIVE tools.`
@@ -130,5 +138,7 @@ Synaptic Instructions:
       { role: 'user' as const, content: userMessage }
     ];
   }
-  updateModel(newModel: string): void { this.model = newModel; }
+  updateModel(newModel: string): void { 
+    this.model = newModel.includes('gemini') ? '@cf/google/gemini-1.5-flash' : newModel;
+  }
 }

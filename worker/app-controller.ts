@@ -6,6 +6,7 @@ export interface ServiceTokens {
   refresh_token?: string;
   expiry_date?: number;
   scopes: string[];
+  email?: string;
 }
 export interface Task {
   id: string;
@@ -93,47 +94,55 @@ export class AppController extends DurableObject<Env> {
       await this.ctx.storage.put(key, task);
     }
   }
-  async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens): Promise<void> {
-    const key = `tokens:${sessionId}:${service}`;
-    const metaKey = `service:${sessionId}:${service}`;
-    await this.ctx.storage.put(key, tokens);
+  async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens, email: string): Promise<void> {
+    // Unique key per account
+    const tokenKey = `tokens:${sessionId}:${service}:${email}`;
+    const metaKey = `service:${sessionId}:${service}:${email}`;
+    await this.ctx.storage.put(tokenKey, { ...tokens, email });
     const meta: ConnectedService = {
       name: service,
+      email: email,
       status: 'active',
       lastSync: new Date().toISOString(),
       connectedAt: new Date().toISOString(),
       scopes: tokens.scopes
     };
     await this.ctx.storage.put(metaKey, meta);
+    // Track accounts list
+    const accountsKey = `accounts:${sessionId}:${service}`;
+    const accounts = await this.ctx.storage.get<string[]>(accountsKey) || [];
+    if (!accounts.includes(email)) {
+      accounts.push(email);
+      await this.ctx.storage.put(accountsKey, accounts);
+    }
   }
-  async getServiceTokens(sessionId: string, service: string): Promise<ServiceTokens | null> {
-    const key = `tokens:${sessionId}:${service}`;
+  async getServiceTokens(sessionId: string, service: string, email?: string): Promise<ServiceTokens | null> {
+    if (!email) {
+      const accounts = await this.ctx.storage.get<string[]>(`accounts:${sessionId}:${service}`) || [];
+      if (accounts.length === 0) return null;
+      email = accounts[0]; // Default to first account
+    }
+    const key = `tokens:${sessionId}:${service}:${email}`;
     return await this.ctx.storage.get<ServiceTokens>(key) || null;
   }
   async listConnectedServices(sessionId: string): Promise<ConnectedService[]> {
     const options = { prefix: `service:${sessionId}:` };
     const list = await this.ctx.storage.list<ConnectedService>(options);
-    const services = Array.from(list.values());
-    const defaults: ConnectedService[] = [
+    const storedServices = Array.from(list.values());
+    if (storedServices.length > 0) return storedServices;
+    // Fallbacks if nothing stored
+    return [
       {
         name: 'gmail',
-        status: 'active',
-        lastSync: new Date().toISOString(),
-        connectedAt: new Date().toISOString(),
-        scopes: ['gmail.readonly']
+        status: 'disconnected',
+        scopes: []
       },
       {
         name: 'calendar',
-        status: 'active',
-        lastSync: new Date().toISOString(),
-        connectedAt: new Date().toISOString(),
-        scopes: ['calendar.readonly']
+        status: 'disconnected',
+        scopes: []
       }
     ];
-    const mergedMap = new Map<string, ConnectedService>();
-    defaults.forEach(d => mergedMap.set(d.name, d));
-    services.forEach(s => mergedMap.set(s.name, s));
-    return Array.from(mergedMap.values());
   }
   async addSession(sessionId: string, title?: string): Promise<void> {
     await this.ensureLoaded();
@@ -156,9 +165,10 @@ export class AppController extends DurableObject<Env> {
       const memKeys = await this.ctx.storage.list({ prefix: `mem:${sessionId}:` });
       const serviceKeys = await this.ctx.storage.list({ prefix: `service:${sessionId}:` });
       const tokenKeys = await this.ctx.storage.list({ prefix: `tokens:${sessionId}:` });
+      const accountKeys = await this.ctx.storage.list({ prefix: `accounts:${sessionId}:` });
       const allKeys = [
         ...keys.keys(), ...taskKeys.keys(), ...memKeys.keys(),
-        ...serviceKeys.keys(), ...tokenKeys.keys()
+        ...serviceKeys.keys(), ...tokenKeys.keys(), ...accountKeys.keys()
       ];
       if (allKeys.length > 0) await this.ctx.storage.delete(allKeys);
     }

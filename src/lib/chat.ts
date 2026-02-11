@@ -1,7 +1,7 @@
 import type { Message, ChatState, ToolCall, SessionInfo, ConnectedService, GmailMessage } from '../../worker/types';
 export interface ChatResponse { success: boolean; data?: ChatState; error?: string; }
 export const MODELS = [
-  { id: '@google/gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash' },
+  { id: '@cf/google/gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
   { id: '@cf/meta/llama-3.1-8b-instruct-turbo', name: 'Llama 3.1 Turbo' }
 ];
 class ChatService {
@@ -19,7 +19,10 @@ class ChatService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, model, stream: !!onChunk }),
       });
-      if (response.status === 401) { throw new Error("Synaptic Link Required"); }
+      if (response.status === 401) {
+        // Trigger re-auth popup automatically if possible, but usually we just want to signal the UI
+        throw new Error("Synaptic Link Required");
+      }
       if (!response.ok) throw new Error(await response.text());
       if (onChunk && response.body) {
         const reader = response.body.getReader();
@@ -32,32 +35,32 @@ class ChatService {
         return { success: true };
       }
       return await response.json();
-    } catch (error) { 
-      return { success: false, error: error instanceof Error ? error.message : 'Synaptic transmission failure' }; 
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Synaptic transmission failure' };
     }
   }
   async getMessages(): Promise<ChatResponse> { try { const r = await fetch(`${this.baseUrl}/messages`); return await r.json(); } catch { return { success: false }; } }
   async getDriveFiles(): Promise<any[]> { try { const r = await fetch(`${this.baseUrl}/drive`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async getDirections(origin: string, destination: string): Promise<any> { 
-    try { 
-      const r = await fetch(`${this.baseUrl}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`); 
-      const j = await r.json(); 
-      return j.success ? j.data : null; 
-    } catch { return null; } 
+  async getDirections(origin: string, destination: string): Promise<any> {
+    try {
+      const r = await fetch(`${this.baseUrl}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`);
+      const j = await r.json();
+      return j.success ? j.data : null;
+    } catch { return null; }
   }
-  async getServiceStatus(): Promise<ConnectedService[]> { 
-    try { 
-      const r = await fetch(`/api/status/services?sessionId=${this.sessionId}`); 
-      const j = await r.json(); 
-      return j.success ? j.data : []; 
-    } catch { return []; } 
+  async getServiceStatus(): Promise<ConnectedService[]> {
+    try {
+      const r = await fetch(`/api/status/services?sessionId=${this.sessionId}`);
+      const j = await r.json();
+      return j.success ? j.data : [];
+    } catch { return []; }
   }
-  async getAuthUrl(service: string): Promise<string | null> { 
-    try { 
-      const r = await fetch(`/api/auth/google?sessionId=${this.sessionId}`); 
-      const j = await r.json(); 
-      return j.success ? j.data.url : null; 
-    } catch { return null; } 
+  async getAuthUrl(service: string): Promise<string | null> {
+    try {
+      const r = await fetch(`/api/auth/google?sessionId=${this.sessionId}&popup=true`);
+      const j = await r.json();
+      return j.success ? j.data.url : null;
+    } catch { return null; }
   }
   async getEmails(): Promise<GmailMessage[]> { try { const r = await fetch(`${this.baseUrl}/emails`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
   async listSessions(): Promise<SessionInfo[]> { try { const r = await fetch('/api/sessions'); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
