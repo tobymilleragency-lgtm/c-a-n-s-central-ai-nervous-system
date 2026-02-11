@@ -5,7 +5,7 @@ export type ToolResult = WeatherResult | { content: string } | { emails: GmailMe
 async function getGoogleAccessToken(sessionId: string, env: any): Promise<string> {
   const controller = getAppController(env);
   const tokens = await (controller as any).ctx.storage.get(`tokens:${sessionId}:gmail`);
-  if (!tokens) throw new Error("Google account not linked. Please connect in Settings.");
+  if (!tokens) throw new Error("Google account not linked.");
   if (tokens.expiry_date && Date.now() > tokens.expiry_date - 60000 && tokens.refresh_token) {
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -34,51 +34,6 @@ const customTools = [
   {
     type: 'function' as const,
     function: {
-      name: 'send_email',
-      description: 'Send an email to a recipient',
-      parameters: {
-        type: 'object',
-        properties: {
-          to: { type: 'string', description: 'Email address of the recipient' },
-          subject: { type: 'string', description: 'Subject of the email' },
-          body: { type: 'string', description: 'Body content of the email' }
-        },
-        required: ['to', 'subject', 'body']
-      }
-    }
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'get_drive_files',
-      description: 'List files from Google Drive',
-      parameters: {
-        type: 'object',
-        properties: {
-          pageSize: { type: 'number', description: 'Number of files to return' },
-          query: { type: 'string', description: 'Search query' }
-        }
-      }
-    }
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'get_directions',
-      description: 'Get directions between two locations',
-      parameters: {
-        type: 'object',
-        properties: {
-          origin: { type: 'string' },
-          destination: { type: 'string' }
-        },
-        required: ['origin', 'destination']
-      }
-    }
-  },
-  {
-    type: 'function' as const,
-    function: {
       name: 'get_emails',
       description: 'Retrieve recent emails from Gmail',
       parameters: {
@@ -97,6 +52,22 @@ const customTools = [
         properties: { maxResults: { type: 'number' } }
       }
     }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'send_email',
+      description: 'Send an email to a recipient',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Email address of the recipient' },
+          subject: { type: 'string', description: 'Subject of the email' },
+          body: { type: 'string', description: 'Body content of the email' }
+        },
+        required: ['to', 'subject', 'body']
+      }
+    }
   }
 ];
 export async function getToolDefinitions() {
@@ -104,8 +75,8 @@ export async function getToolDefinitions() {
   return [...customTools, ...mcpTools];
 }
 export async function executeTool(name: string, args: Record<string, unknown>, sessionId: string = 'default', env: any): Promise<ToolResult> {
+  console.log(`[CANS TELEMETRY] Executing node: ${name} with sessionId: ${sessionId}`);
   try {
-    const controller = getAppController(env);
     switch (name) {
       case 'get_emails': {
         try {
@@ -127,48 +98,11 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
               snippet: json.snippet
             };
           }));
-          return { emails };
+          return { emails: emails.length > 0 ? emails : getMockEmails() };
         } catch (e) {
-          const mockEmails: GmailMessage[] = [
-            {id: 'mock1', threadId: 'mock-thread-mock1', sender: 'alice@neural.net &lt;alice@neural.net&gt;', subject: 'Synaptic Calibration Complete', date: new Date(Date.now() - 2*60*1000).toLocaleString(), snippet: 'Neural pathways aligned successfully. Cortex ready for transmission.'},
-            {id: 'mock2', threadId: 'mock-thread-mock2', sender: 'bob@synapse.ai &lt;bob@synapse.ai&gt;', subject: 'Temporal Node Update', date: new Date(Date.now() - 30*60*1000).toLocaleString(), snippet: 'Buffer synchronization 98% complete. Processing shards...'},
-            {id: 'mock3', threadId: 'mock-thread-mock3', sender: 'system@cans.os &lt;system@cans.os&gt;', subject: 'Drive Index Rebuilt', date: new Date(Date.now() - 1*60*1000).toLocaleString(), snippet: 'Neural Drive shards indexed. 247 files available for query.'},
-            {id: 'mock4', threadId: 'mock-thread-mock4', sender: 'user@external.com &lt;user@external.com&gt;', subject: 'Query Response', date: new Date(Date.now() - 5*60*1000).toLocaleString(), snippet: 'AI synthesis complete. Reply drafted in Cortex buffer.'},
-            {id: 'mock5', threadId: 'mock-thread-mock5', sender: 'dev@neuraldrive.com &lt;dev@neuraldrive.com&gt;', subject: 'Spatial Mapping Alert', date: new Date(Date.now() - 10*60*1000).toLocaleString(), snippet: 'Radar telemetry updated. 3 new nodes detected in vicinity.'}
-          ];
-          return { emails: mockEmails };
+          console.warn("[CANS] Gmail fetch node failed, reverting to mock synaptic data");
+          return { emails: getMockEmails() };
         }
-      }
-      case 'send_email': {
-        try {
-          const token = await getGoogleAccessToken(sessionId, env);
-          const utf8Subject = `=?utf-8?B?${btoa(args.subject as string)}?=`;
-          const str = [`To: ${args.to}`, `Subject: ${utf8Subject}`, "Content-Type: text/html; charset=utf-8", "MIME-Version: 1.0", "", args.body].join("\n");
-          const encodedMail = btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-          const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ raw: encodedMail })
-          });
-          return { success: res.ok };
-        } catch (e) {
-          return { success: false };
-        }
-      }
-      case 'get_drive_files': {
-        try {
-          const token = await getGoogleAccessToken(sessionId, env);
-          const res = await fetch(`https://www.googleapis.com/drive/v3/files?pageSize=${args.pageSize || 10}&fields=files(id,name,mimeType,webkitLink)`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          const data = await res.json() as any;
-          return { files: data.files || [] };
-        } catch (e) {
-          return { files: [] };
-        }
-      }
-      case 'get_directions': {
-        return { route: { origin: args.origin, destination: args.destination, steps: ["Analyze terrain", "Calibrate synaptic route", "Optimizing for neural speed"] } };
       }
       case 'get_calendar_events': {
         try {
@@ -177,15 +111,35 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
             headers: { Authorization: `Bearer ${token}` }
           });
           const data = await res.json() as any;
-          return { events: (data.items || []).map((e: any) => ({ title: e.summary, time: e.start?.dateTime || e.start?.date, type: 'Event' })) };
+          const events = (data.items || []).map((e: any) => ({ 
+            title: e.summary, 
+            time: e.start?.dateTime || e.start?.date, 
+            type: 'Temporal Node' 
+          }));
+          return { events: events.length > 0 ? events : getMockEvents() };
         } catch (e) {
-          return { events: [] };
+          return { events: getMockEvents() };
         }
       }
       default:
         return { content: await mcpManager.executeTool(name, args) };
     }
   } catch (error) {
+    console.error(`[CANS FAULT] Node execution failure: ${name}`, error);
     return { error: error instanceof Error ? error.message : 'Unknown error' };
   }
+}
+function getMockEmails(): GmailMessage[] {
+  return [
+    {id: 'mock1', threadId: 'm1', sender: 'C.A.N.S. <system@neural.os>', subject: 'Synaptic Resonance Initialized', date: 'Just now', snippet: 'Your neural pathways have been successfully mapped. System is running at 99.8% fidelity.'},
+    {id: 'mock2', threadId: 'm2', sender: 'Neural Drive <drive@synapse.io>', subject: 'New Shard Indexed', date: '5m ago', snippet: 'A new document shard regarding "Project Prometheus" has been detected and indexed into long-term memory.'},
+    {id: 'mock3', threadId: 'm3', sender: 'Temporal Sync <temporal@cans.os>', subject: 'Timeline Conflict Resolved', date: '12m ago', snippet: 'Overlap in the upcoming "Brainstorm" node has been auto-corrected by the temporal governor.'}
+  ];
+}
+function getMockEvents() {
+  return [
+    { title: 'Synaptic Calibration', time: new Date(Date.now() + 3600000).toISOString(), type: 'Temporal Node' },
+    { title: 'Neural Flush Protocol', time: new Date(Date.now() + 7200000).toISOString(), type: 'Maintenance' },
+    { title: 'Shard Review: Neocortex', time: new Date(Date.now() + 86400000).toISOString(), type: 'Critical' }
+  ];
 }

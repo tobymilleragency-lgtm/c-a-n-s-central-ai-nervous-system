@@ -6,12 +6,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 export function TopBar() {
   const [services, setServices] = useState<ConnectedService[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
   const fetchStatus = useCallback(async () => {
     try {
+      setIsSyncing(true);
       const status = await chatService.getServiceStatus();
       setServices(Array.isArray(status) ? status : []);
     } catch (error) {
       console.error("TopBar sync failed:", error);
+    } finally {
+      setTimeout(() => setIsSyncing(false), 800);
     }
   }, []);
   useEffect(() => {
@@ -19,6 +23,7 @@ export function TopBar() {
     const interval = setInterval(fetchStatus, 30000);
     const handleAuth = (e: MessageEvent) => {
       if (e.data?.type === 'AUTH_SUCCESS') {
+        console.log("[CANS] Synaptic Link Confirmed, refreshing TopBar");
         fetchStatus();
       }
     };
@@ -50,20 +55,38 @@ export function TopBar() {
           <span className="text-[10px] uppercase tracking-widest text-bio-cyan/60 font-mono">Neural OS v1.2</span>
         </div>
         <div className="flex items-center gap-4">
-          <Orb icon={Mail} service={getStatus('gmail')} label="Gmail Node" color="cyan" />
-          <Orb icon={Calendar} service={getStatus('calendar')} label="Temporal Node" color="violet" />
-          <Orb icon={Cpu} service={{ status: 'active', name: 'system', scopes: [] }} label="Core Processor" color="green" />
+          <Orb icon={Mail} service={getStatus('gmail')} label="Gmail Node" color="cyan" connecting={isSyncing} />
+          <Orb icon={Calendar} service={getStatus('calendar')} label="Temporal Node" color="violet" connecting={isSyncing} />
+          <Orb icon={Cpu} service={{ status: 'active', name: 'system', scopes: [] }} label="Core Processor" color="green" connecting={isSyncing} />
         </div>
       </header>
     </TooltipProvider>
   );
 }
-function Orb({ icon: Icon, service, label, color }: { icon: any; service?: ConnectedService; label: string; color: 'cyan' | 'violet' | 'green' }) {
+function Orb({ 
+  icon: Icon, 
+  service, 
+  label, 
+  color,
+  connecting 
+}: { 
+  icon: any; 
+  service?: ConnectedService; 
+  label: string; 
+  color: 'cyan' | 'violet' | 'green';
+  connecting?: boolean;
+}) {
   const isActive = service?.status === 'active';
   const colorClasses = {
-    cyan: isActive ? "border-bio-cyan/40 bg-bio-cyan/10 text-bio-cyan shadow-[0_0_20px_rgba(0,212,255,0.3)]" : "border-white/10 bg-white/5 text-white/20",
-    violet: isActive ? "border-memory-violet/40 bg-memory-violet/10 text-memory-violet shadow-[0_0_20px_rgba(139,92,246,0.3)]" : "border-white/10 bg-white/5 text-white/20",
-    green: isActive ? "border-[#10b981]/40 bg-[#10b981]/10 text-[#10b981] shadow-[0_0_20px_rgba(16,185,129,0.3)]" : "border-white/10 bg-white/5 text-white/20"
+    cyan: isActive 
+      ? "border-bio-cyan/40 bg-bio-cyan/10 text-bio-cyan shadow-[0_0_15px_rgba(0,212,255,0.2)]" 
+      : "border-white/10 bg-white/5 text-white/20",
+    violet: isActive 
+      ? "border-memory-violet/40 bg-memory-violet/10 text-memory-violet shadow-[0_0_15px_rgba(139,92,246,0.2)]" 
+      : "border-white/10 bg-white/5 text-white/20",
+    green: isActive 
+      ? "border-[#10b981]/40 bg-[#10b981]/10 text-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.2)]" 
+      : "border-white/10 bg-white/5 text-white/20"
   };
   return (
     <Tooltip>
@@ -71,14 +94,16 @@ function Orb({ icon: Icon, service, label, color }: { icon: any; service?: Conne
         <div className="relative cursor-help group">
           <div className={cn(
             "h-9 w-9 rounded-full border flex items-center justify-center transition-all duration-700",
-            colorClasses[color]
+            connecting ? "scale-90 opacity-50 animate-pulse" : "scale-100 opacity-100",
+            colorClasses[color],
+            isActive && "border-[#10b981]/60 shadow-[0_0_25px_rgba(16,185,129,0.4)]"
           )}>
             <Icon size={14} className={cn(isActive && "animate-pulse")} />
           </div>
           {isActive && (
             <div className={cn(
-              "absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full animate-ping",
-              color === 'cyan' ? "bg-bio-cyan" : color === 'violet' ? "bg-memory-violet" : "bg-[#10b981]"
+              "absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full animate-ping opacity-70",
+              "bg-[#10b981]"
             )} />
           )}
         </div>
