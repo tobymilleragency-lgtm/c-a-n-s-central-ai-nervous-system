@@ -33,12 +33,14 @@ export function PeripheralPanel() {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
-  const isConnected = (name: string) => services.some(s => s.name === name && s.status === 'active');
+  const isGmailConnected = useMemo(() => services.some(s => s.name === 'gmail' && s.status === 'active'), [services]);
+  const isCalendarConnected = useMemo(() => services.some(s => s.name === 'calendar' && s.status === 'active'), [services]);
+  
   const radialData = useMemo(() => [
-    { name: 'Gmail', value: isConnected('gmail') ? 100 : 20, fill: '#00d4ff' },
-    { name: 'Temporal', value: isConnected('calendar') ? 100 : 20, fill: '#8b5cf6' },
+    { name: 'Gmail', value: isGmailConnected ? 100 : 20, fill: '#00d4ff' },
+    { name: 'Temporal', value: isCalendarConnected ? 100 : 20, fill: '#8b5cf6' },
     { name: 'System', value: 100, fill: '#10b981' },
-  ], [services]);
+  ], [isGmailConnected, isCalendarConnected]);
   return (
     <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar">
       {/* Neural Telemetry */}
@@ -51,7 +53,7 @@ export function PeripheralPanel() {
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
         <div className="h-24 w-full opacity-60">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={96}>
             <AreaChart data={telemetry}>
               <defs>
                 <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
@@ -67,7 +69,7 @@ export function PeripheralPanel() {
       {/* Pathway Health */}
       <section className="flex items-center gap-4">
         <div className="h-24 w-24">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={96}>
             <RadialBarChart innerRadius="60%" outerRadius="100%" data={radialData} startAngle={180} endAngle={0}>
               <RadialBar background dataKey="value" cornerRadius={10} />
             </RadialBarChart>
@@ -90,7 +92,7 @@ export function PeripheralPanel() {
           <div className="flex items-center justify-between mb-4 px-1">
             <div className={cn(
               "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest",
-              isConnected('gmail') ? 'text-bio-cyan drop-shadow-[0_0_5px_rgba(0,212,255,0.5)]' : 'text-white/20'
+              isGmailConnected ? 'text-bio-cyan drop-shadow-[0_0_5px_rgba(0,212,255,0.5)]' : 'text-white/20'
             )}>
               <Mail size={12} />
               Synaptic Comms
@@ -116,7 +118,7 @@ export function PeripheralPanel() {
           <div className="flex items-center justify-between mb-4 px-1">
             <div className={cn(
               "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest",
-              tasks.length > 0 ? 'text-memory-violet drop-shadow-[0_0_5px_rgba(139,92,246,0.5)]' : 'text-white/20'
+              isCalendarConnected ? 'text-memory-violet drop-shadow-[0_0_5px_rgba(139,92,246,0.5)]' : 'text-white/20'
             )}>
               <Calendar size={12} />
               Temporal Buffer

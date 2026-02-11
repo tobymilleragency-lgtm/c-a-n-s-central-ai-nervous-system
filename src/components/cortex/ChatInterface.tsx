@@ -23,25 +23,24 @@ export function ChatInterface() {
     const res = await chatService.getMessages();
     if (res.success && res.data) setMessages(res.data.messages);
   }, []);
-  const handleSend = useCallback(async (overrideText?: string) => {
-    const text = overrideText || input;
+  const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
-    if (!overrideText) setInput("");
+    setInput("");
     setIsLoading(true);
     const res = await chatService.sendMessage(text);
     if (res.success) await loadMessages();
     setIsLoading(false);
-  }, [input, isLoading, loadMessages]);
+  }, [isLoading, loadMessages]);
   useEffect(() => {
     loadMessages();
   }, [loadMessages, location.pathname]);
   useEffect(() => {
     const context = searchParams.get('context');
     if (context) {
-      handleSend(context);
-      setSearchParams({}, { replace: true });
+      sendMessage(context);
+      setSearchParams(new URLSearchParams(), { replace: true });
     }
-  }, [searchParams, handleSend, setSearchParams]);
+  }, [searchParams, sendMessage, setSearchParams]);
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -136,11 +135,11 @@ export function ChatInterface() {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="TRANSMIT SYNAPTIC QUERY..."
-              className="border-0 bg-transparent focus-visible:ring-0 text-white placeholder:text-white/10 h-14 text-sm font-black tracking-widest uppercase no-scrollbar"
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
+              placeholder="Transmit synaptic query"
+              className="border-0 bg-neural-bg/20 text-white placeholder:text-white/40 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] focus-visible:drop-shadow-[0_0_15px_rgba(0,212,255,0.6)] text-base tracking-[0.05em] font-black uppercase h-14 no-scrollbar"
             />
-            <Button onClick={() => handleSend()} disabled={isLoading || !input.trim()} size="icon" className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 rounded-xl w-12 h-12 transition-all active:scale-90 shadow-glow">
+            <Button onClick={() => sendMessage(input)} disabled={isLoading || !input.trim()} size="icon" className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 rounded-xl w-12 h-12 transition-all active:scale-90 shadow-glow">
               <Send size={20} />
             </Button>
           </NeuralCard>
