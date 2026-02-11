@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { cn } from '@/lib/utils';
 import { AppSidebar } from "@/components/app-sidebar";
 import { motion } from "framer-motion";
 import { SidebarProvider } from "@/components/ui/sidebar";
