@@ -105,6 +105,11 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             meta: { latency: `${(Math.random() * 0.5).toFixed(2)}ms`, status: "SYNCED" }
         });
     });
+    app.get('/api/system/stats', async (c) => {
+        const controller = getAppController(c.env);
+        const stats = await controller.getSystemStats();
+        return c.json({ success: true, data: stats });
+    });
     app.get('/api/sessions', async (c) => {
         const controller = getAppController(c.env);
         const sessions = await controller.listSessions();

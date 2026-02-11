@@ -22,6 +22,7 @@ export interface GmailMessage {
 }
 export interface ConnectedService {
   name: string;
+  email?: string;
   status: 'active' | 'expired' | 'disconnected';
   lastSync?: string;
   connectedAt?: string;
@@ -61,4 +62,10 @@ export interface Tool {
     properties: Record<string, unknown>;
     required: string[];
   };
+}
+export interface SystemStats {
+  memories: number;
+  tasks: number;
+  sessions: number;
+  messages: number;
 }

@@ -1,4 +1,4 @@
-import type { Message, ChatState, ToolCall, SessionInfo, ConnectedService, GmailMessage } from '../../worker/types';
+import type { Message, ChatState, ToolCall, SessionInfo, ConnectedService, GmailMessage, SystemStats } from '../../worker/types';
 export interface ChatResponse { success: boolean; data?: ChatState; error?: string; }
 export const MODELS = [
   { id: '@cf/google/gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
@@ -54,6 +54,13 @@ class ChatService {
       const j = await r.json();
       return j.success ? j.data : [];
     } catch { return []; }
+  }
+  async getSystemStats(): Promise<SystemStats | null> {
+    try {
+      const r = await fetch('/api/system/stats');
+      const j = await r.json();
+      return j.success ? j.data : null;
+    } catch { return null; }
   }
   async getAuthUrl(service: string): Promise<string | null> {
     try {

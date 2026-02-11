@@ -16,13 +16,13 @@ export function ChatInterface() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const getContextName = useCallback(() => {
-    const paths: Record<string, string> = { 
-      '/': 'CORE CORTEX', 
-      '/comms': 'COMMS BRIDGE', 
-      '/knowledge': 'KNOWLEDGE VAULT', 
-      '/temporal': 'TEMPORAL SYNC', 
-      '/drive': 'NEURAL DRIVE', 
-      '/spatial': 'SPATIAL AWARENESS' 
+    const paths: Record<string, string> = {
+      '/': 'CORE CORTEX',
+      '/comms': 'COMMS BRIDGE',
+      '/knowledge': 'KNOWLEDGE VAULT',
+      '/temporal': 'TEMPORAL SYNC',
+      '/drive': 'NEURAL DRIVE',
+      '/spatial': 'SPATIAL AWARENESS'
     };
     return paths[location.pathname] || 'SYSTEM';
   }, [location.pathname]);
@@ -61,8 +61,7 @@ export function ChatInterface() {
   }, [messages, isLoading, scrollToBottom]);
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden">
-      {/* Context Header - Sticky to top of the Cortex column */}
-      <div className="sticky top-0 left-0 right-0 flex justify-between items-center px-6 py-4 border-b border-white/5 bg-neural-bg/80 backdrop-blur-xl z-30">
+      <div className="sticky top-0 left-0 right-0 flex justify-between items-center py-4 border-b border-white/5 bg-neural-bg/80 backdrop-blur-xl z-30">
         <div className="flex items-center gap-3">
            <div className="h-2 w-2 rounded-full bg-bio-cyan shadow-[0_0_10px_#00d4ff] animate-pulse" />
            <span className="text-[10px] font-black tracking-[0.3em] text-bio-cyan uppercase">{getContextName()}</span>
@@ -73,9 +72,8 @@ export function ChatInterface() {
           <span>STATUS: SYNCED</span>
         </div>
       </div>
-      {/* Message Stream Container */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar pt-8 pb-40">
-        <div className="max-w-4xl mx-auto px-6 space-y-12">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar py-8 md:py-10 lg:py-12 pb-40">
+        <div className="max-w-4xl mx-auto space-y-12">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center text-center space-y-8 opacity-40 py-24">
               <div className="relative">
@@ -96,7 +94,7 @@ export function ChatInterface() {
               transition={{ delay: 0.05 }}
               className={cn("flex items-start gap-4", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}
             >
-              <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0 transition-transform duration-500", msg.role === 'user' ? "border-alert-pink/20 bg-alert-pink/5" : "border-bio-cyan/20 bg-bio-cyan/5 shadow-glow")}>
+              <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0", msg.role === 'user' ? "border-alert-pink/20 bg-alert-pink/5" : "border-bio-cyan/20 bg-bio-cyan/5 shadow-glow")}>
                 {msg.role === 'user' ? <User size={18} className="text-alert-pink" /> : <Sparkles size={18} className="text-bio-cyan" />}
               </div>
               <div className={cn("max-w-[85%]", msg.role === 'user' ? "text-right" : "text-left")}>
@@ -112,19 +110,6 @@ export function ChatInterface() {
                           {isError ? <XCircle size={14} /> : isWrite ? <CheckCircle size={14} className="text-bio-cyan" /> : <Zap size={14} className="animate-pulse" />}
                           {toolUI.label}
                         </div>
-                        {toolUI.type === 'files' && toolUI.data && (
-                          <div className="mt-4 grid grid-cols-1 gap-2">
-                            {toolUI.data.slice(0, 3).map((file: any) => (
-                              <div key={file.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-bio-cyan/30 transition-all cursor-pointer group">
-                                <div className="flex items-center gap-3">
-                                  <FileText size={14} className="text-bio-cyan" />
-                                  <span className="text-[11px] font-bold text-white/80 truncate max-w-[200px]">{file.name}</span>
-                                </div>
-                                <ArrowUpRight size={14} className="text-white/20 group-hover:text-bio-cyan transition-colors" />
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -151,10 +136,9 @@ export function ChatInterface() {
           )}
         </div>
       </div>
-      {/* Real-time Constrained Input Bar */}
-      <div className="absolute bottom-8 left-0 right-0 px-6 pointer-events-none z-40">
+      <div className="absolute bottom-8 left-0 right-0 pointer-events-none z-40">
         <div className="max-w-4xl mx-auto w-full pointer-events-auto">
-          <div className="relative group">
+          <div className="relative group px-6 sm:px-0">
             <div className="absolute -inset-1 bg-gradient-to-r from-bio-cyan to-memory-violet rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition duration-700" />
             <NeuralCard className="relative p-1.5 pr-3 flex items-center gap-2 bg-[#0a0e1a]/90 backdrop-blur-2xl border-white/10 focus-within:border-bio-cyan/40">
               <Input
@@ -164,10 +148,10 @@ export function ChatInterface() {
                 placeholder="Transmit synaptic query"
                 className="border-0 bg-transparent text-white placeholder:text-white/30 focus-visible:ring-0 text-sm tracking-[0.05em] font-black uppercase h-14"
               />
-              <Button 
-                onClick={() => sendMessage(input)} 
-                disabled={isLoading || !input.trim()} 
-                size="icon" 
+              <Button
+                onClick={() => sendMessage(input)}
+                disabled={isLoading || !input.trim()}
+                size="icon"
                 className="bg-bio-cyan text-neural-bg hover:bg-bio-cyan/80 rounded-xl w-12 h-12 transition-all active:scale-95 shadow-glow shrink-0"
               >
                 <Send size={20} />

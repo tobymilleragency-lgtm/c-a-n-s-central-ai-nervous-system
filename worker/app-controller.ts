@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { SessionInfo, ConnectedService, Message, ChatState } from './types';
+import type { SessionInfo, ConnectedService, Message, SystemStats } from './types';
 import type { Env } from './core-utils';
 export interface ServiceTokens {
   access_token: string;
@@ -62,6 +62,91 @@ export class AppController extends DurableObject<Env> {
     const list = await this.ctx.storage.list<Message>(options);
     return Array.from(list.values()).sort((a, b) => a.timestamp - b.timestamp);
   }
+  async getSystemStats(): Promise<SystemStats> {
+    const messages = await this.ctx.storage.list({ prefix: 'msg:' });
+    const tasks = await this.ctx.storage.list({ prefix: 'task:' });
+    const memories = await this.ctx.storage.list({ prefix: 'mem:' });
+    await this.ensureLoaded();
+    return {
+      messages: messages.size,
+      tasks: tasks.size,
+      memories: memories.size,
+      sessions: this.sessions.size
+    };
+  }
+  async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens, email: string): Promise<void> {
+    const tokenKey = `tokens:${sessionId}:${service}:${email}`;
+    const metaKey = `service:${sessionId}:${service}:${email}`;
+    await this.ctx.storage.put(tokenKey, { ...tokens, email });
+    const meta: ConnectedService = {
+      name: service,
+      email: email,
+      status: 'active',
+      lastSync: new Date().toISOString(),
+      connectedAt: new Date().toISOString(),
+      scopes: tokens.scopes
+    };
+    await this.ctx.storage.put(metaKey, meta);
+    const accountsKey = `accounts:${sessionId}:${service}`;
+    const accounts = await this.ctx.storage.get<string[]>(accountsKey) || [];
+    if (!accounts.includes(email)) {
+      accounts.push(email);
+      await this.ctx.storage.put(accountsKey, accounts);
+    }
+  }
+  async getServiceTokens(sessionId: string, service: string, email?: string): Promise<ServiceTokens | null> {
+    if (!email) {
+      const accounts = await this.ctx.storage.get<string[]>(`accounts:${sessionId}:${service}`) || [];
+      if (accounts.length === 0) return null;
+      email = accounts[0];
+    }
+    const key = `tokens:${sessionId}:${service}:${email}`;
+    return await this.ctx.storage.get<ServiceTokens>(key) || null;
+  }
+  async listConnectedServices(sessionId: string): Promise<ConnectedService[]> {
+    const options = { prefix: `service:${sessionId}:` };
+    const list = await this.ctx.storage.list<ConnectedService>(options);
+    const storedServices = Array.from(list.values());
+    if (storedServices.length > 0) return storedServices;
+    return [
+      { name: 'gmail', status: 'disconnected', scopes: [] },
+      { name: 'calendar', status: 'disconnected', scopes: [] }
+    ];
+  }
+  async addSession(sessionId: string, title?: string): Promise<void> {
+    await this.ensureLoaded();
+    const now = Date.now();
+    this.sessions.set(sessionId, {
+      id: sessionId,
+      title: title || `Chat ${new Date(now).toLocaleDateString()}`,
+      createdAt: now,
+      lastActive: now
+    });
+    await this.persist();
+  }
+  async removeSession(sessionId: string): Promise<boolean> {
+    await this.ensureLoaded();
+    const deleted = this.sessions.delete(sessionId);
+    if (deleted) {
+      await this.persist();
+      const msgKeys = await this.ctx.storage.list({ prefix: `msg:${sessionId}:` });
+      const taskKeys = await this.ctx.storage.list({ prefix: `task:${sessionId}:` });
+      const memKeys = await this.ctx.storage.list({ prefix: `mem:${sessionId}:` });
+      const serviceKeys = await this.ctx.storage.list({ prefix: `service:${sessionId}:` });
+      const tokenKeys = await this.ctx.storage.list({ prefix: `tokens:${sessionId}:` });
+      const accountKeys = await this.ctx.storage.list({ prefix: `accounts:${sessionId}:` });
+      const allKeys = [
+        ...msgKeys.keys(), ...taskKeys.keys(), ...memKeys.keys(),
+        ...serviceKeys.keys(), ...tokenKeys.keys(), ...accountKeys.keys()
+      ];
+      if (allKeys.length > 0) await this.ctx.storage.delete(allKeys);
+    }
+    return deleted;
+  }
+  async listSessions(): Promise<SessionInfo[]> {
+    await this.ensureLoaded();
+    return Array.from(this.sessions.values()).sort((a, b) => b.lastActive - a.lastActive);
+  }
   async addMemory(sessionId: string, memory: Omit<Memory, 'id' | 'timestamp'>): Promise<void> {
     const id = crypto.randomUUID();
     const key = `mem:${sessionId}:${id}`;
@@ -93,89 +178,5 @@ export class AppController extends DurableObject<Env> {
       task.status = status;
       await this.ctx.storage.put(key, task);
     }
-  }
-  async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens, email: string): Promise<void> {
-    // Unique key per account
-    const tokenKey = `tokens:${sessionId}:${service}:${email}`;
-    const metaKey = `service:${sessionId}:${service}:${email}`;
-    await this.ctx.storage.put(tokenKey, { ...tokens, email });
-    const meta: ConnectedService = {
-      name: service,
-      email: email,
-      status: 'active',
-      lastSync: new Date().toISOString(),
-      connectedAt: new Date().toISOString(),
-      scopes: tokens.scopes
-    };
-    await this.ctx.storage.put(metaKey, meta);
-    // Track accounts list
-    const accountsKey = `accounts:${sessionId}:${service}`;
-    const accounts = await this.ctx.storage.get<string[]>(accountsKey) || [];
-    if (!accounts.includes(email)) {
-      accounts.push(email);
-      await this.ctx.storage.put(accountsKey, accounts);
-    }
-  }
-  async getServiceTokens(sessionId: string, service: string, email?: string): Promise<ServiceTokens | null> {
-    if (!email) {
-      const accounts = await this.ctx.storage.get<string[]>(`accounts:${sessionId}:${service}`) || [];
-      if (accounts.length === 0) return null;
-      email = accounts[0]; // Default to first account
-    }
-    const key = `tokens:${sessionId}:${service}:${email}`;
-    return await this.ctx.storage.get<ServiceTokens>(key) || null;
-  }
-  async listConnectedServices(sessionId: string): Promise<ConnectedService[]> {
-    const options = { prefix: `service:${sessionId}:` };
-    const list = await this.ctx.storage.list<ConnectedService>(options);
-    const storedServices = Array.from(list.values());
-    if (storedServices.length > 0) return storedServices;
-    // Fallbacks if nothing stored
-    return [
-      {
-        name: 'gmail',
-        status: 'disconnected',
-        scopes: []
-      },
-      {
-        name: 'calendar',
-        status: 'disconnected',
-        scopes: []
-      }
-    ];
-  }
-  async addSession(sessionId: string, title?: string): Promise<void> {
-    await this.ensureLoaded();
-    const now = Date.now();
-    this.sessions.set(sessionId, {
-      id: sessionId,
-      title: title || `Chat ${new Date(now).toLocaleDateString()}`,
-      createdAt: now,
-      lastActive: now
-    });
-    await this.persist();
-  }
-  async removeSession(sessionId: string): Promise<boolean> {
-    await this.ensureLoaded();
-    const deleted = this.sessions.delete(sessionId);
-    if (deleted) {
-      await this.persist();
-      const keys = await this.ctx.storage.list({ prefix: `msg:${sessionId}:` });
-      const taskKeys = await this.ctx.storage.list({ prefix: `task:${sessionId}:` });
-      const memKeys = await this.ctx.storage.list({ prefix: `mem:${sessionId}:` });
-      const serviceKeys = await this.ctx.storage.list({ prefix: `service:${sessionId}:` });
-      const tokenKeys = await this.ctx.storage.list({ prefix: `tokens:${sessionId}:` });
-      const accountKeys = await this.ctx.storage.list({ prefix: `accounts:${sessionId}:` });
-      const allKeys = [
-        ...keys.keys(), ...taskKeys.keys(), ...memKeys.keys(),
-        ...serviceKeys.keys(), ...tokenKeys.keys(), ...accountKeys.keys()
-      ];
-      if (allKeys.length > 0) await this.ctx.storage.delete(allKeys);
-    }
-    return deleted;
-  }
-  async listSessions(): Promise<SessionInfo[]> {
-    await this.ensureLoaded();
-    return Array.from(this.sessions.values()).sort((a, b) => b.lastActive - a.lastActive);
   }
 }

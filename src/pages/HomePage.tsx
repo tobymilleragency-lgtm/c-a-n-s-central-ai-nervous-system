@@ -5,9 +5,11 @@ import { PeripheralPanel } from '@/components/cortex/PeripheralPanel';
 import { Toaster } from '@/components/ui/sonner';
 export function HomePage() {
   return (
-    <div className="h-screen overflow-hidden">
+    <div className="h-screen overflow-hidden flex flex-col">
       <AppLayout peripheral={<PeripheralPanel />}>
-        <ChatInterface />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+          <ChatInterface />
+        </div>
       </AppLayout>
       {/* Global Neural UI Overlay for AI usage note */}
       <div className="fixed bottom-2 right-4 z-[100] pointer-events-none opacity-40">
