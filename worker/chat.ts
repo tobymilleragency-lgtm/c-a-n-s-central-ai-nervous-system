@@ -90,11 +90,17 @@ export class ChatHandler {
       try {
         let args = {};
         if (tc.function.arguments) {
-          try { args = JSON.parse(tc.function.arguments); } catch (e) {}
+          try {
+            args = JSON.parse(tc.function.arguments);
+          } catch (e) {
+            console.warn(`[CANS] Synaptic tool argument parsing failed for ${tc.function.name}:`, e);
+            args = {}; // Fallback to empty object
+          }
         }
         const result = await executeTool(tc.function.name, args, sessionId, this.env);
         return { id: tc.id, name: tc.function.name, arguments: args, result };
       } catch (error) {
+        console.error(`[CANS] Tool execution failure: ${tc.function.name}`, error);
         return { id: tc.id, name: tc.function.name, arguments: {}, result: { error: `Execution failure at node ${tc.function.name}.` } };
       }
     }));
@@ -115,7 +121,7 @@ export class ChatHandler {
     return followUp.choices?.[0]?.message?.content || 'Synaptic cycle finalized.';
   }
   private buildConversationMessages(userMessage: string, history: Message[], services: ConnectedService[]) {
-    const accountContext = services.length > 0 
+    const accountContext = services.length > 0
       ? `ACTIVE SYNAPTIC NODES (Linked Accounts):\n${services.map(s => `- ${s.display_name || 'User'} (${s.email}) status: ${s.status}`).join('\n')}`
       : "No accounts currently linked.";
     return [

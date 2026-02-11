@@ -40,81 +40,89 @@ export function PeripheralPanel() {
   }, [fetchData, activeAccount]);
   const isGmailConnected = useMemo(() => services.some(s => s.name === 'google' && s.status === 'active'), [services]);
   return (
-    <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar">
+    <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar min-w-0">
       {/* Node Selector */}
-      <section>
+      <section className="min-w-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center justify-between p-3 rounded-xl bg-bio-cyan/5 border border-bio-cyan/20 text-bio-cyan group hover:bg-bio-cyan/10 transition-all">
-              <div className="flex items-center gap-3">
-                <UserCircle size={16} />
-                <div className="text-left">
+            <button className="w-full flex items-center justify-between p-3 rounded-xl bg-bio-cyan/5 border border-bio-cyan/20 text-bio-cyan group hover:bg-bio-cyan/10 transition-all min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <UserCircle size={16} className="shrink-0" />
+                <div className="text-left min-w-0 flex-1">
                   <p className="text-[10px] font-black uppercase tracking-widest leading-none">Identity Node</p>
-                  <p className="text-[9px] font-mono text-white/40 truncate max-w-[140px] mt-1">
+                  <p className="text-[9px] font-mono text-white/40 truncate mt-1">
                     {activeAccount || 'Link Account...'}
                   </p>
                 </div>
               </div>
-              <ChevronDown size={14} className="opacity-40 group-hover:opacity-100" />
+              <ChevronDown size={14} className="opacity-40 group-hover:opacity-100 shrink-0" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="neural-glass border-white/10 w-64 p-2">
             {services.map((s) => (
-              <DropdownMenuItem 
-                key={s.email} 
+              <DropdownMenuItem
+                key={s.email}
                 onClick={() => setActiveAccount(s.email || null)}
                 className="flex items-center justify-between rounded-lg p-3 cursor-pointer hover:bg-bio-cyan/10"
               >
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white">{s.display_name || 'User'}</p>
-                  <p className="text-[9px] font-mono text-white/40">{s.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{s.display_name || 'User'}</p>
+                  <p className="text-[9px] font-mono text-white/40 truncate">{s.email}</p>
                 </div>
-                {activeAccount === s.email && <div className="h-1.5 w-1.5 rounded-full bg-bio-cyan shadow-[0_0_8px_#00d4ff]" />}
+                {activeAccount === s.email && <div className="h-1.5 w-1.5 rounded-full bg-bio-cyan shadow-[0_0_8px_#00d4ff] shrink-0 ml-2" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </section>
       {/* Neural Telemetry */}
-      <section>
+      <section className="min-w-0">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black flex items-center gap-2">
             <Activity size={12} className="text-bio-cyan" /> Telemetry
           </h3>
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
-        <div className="h-32 w-full min-h-32 opacity-80 relative">
+        <div className="h-32 min-h-[128px] w-full opacity-80 relative min-w-0">
           <ResponsiveContainer width="100%" height="100%" aspect={3}>
-            <AreaChart data={telemetry}>
+            <AreaChart data={telemetry} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.4}/>
                   <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <Area type="monotone" dataKey="value" stroke="#00d4ff" fillOpacity={1} fill="url(#colorVal)" strokeWidth={1} isAnimationActive={false} />
+              <Area 
+                type="monotone" 
+                dataKey="value" 
+                stroke="#00d4ff" 
+                fillOpacity={1} 
+                fill="url(#colorVal)" 
+                strokeWidth={1} 
+                isAnimationActive={false} 
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </section>
-      <div className="space-y-8">
+      <div className="space-y-8 min-w-0">
         {/* Comms Stream */}
-        <section>
+        <section className="min-w-0">
           <div className="flex items-center justify-between mb-4 px-1">
             <div className={cn(
               "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-500",
               isGmailConnected ? 'text-[#10b981] drop-shadow-[0_0_8px_#10b981]' : 'text-white/20'
             )}>
-              <Mail size={12} />
+              <Mail size={12} className="shrink-0" />
               Synaptic Comms
             </div>
             {isGmailConnected && <div className="h-1.5 w-1.5 rounded-full bg-[#10b981] animate-ping" />}
           </div>
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 min-w-0">
             <AnimatePresence mode="popLayout">
               {emails.length > 0 ? emails.map((email) => (
                 <motion.div key={email.id} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-                  <NeuralCard className="p-3 border-white/5 hover:border-bio-cyan/30 bg-white/[0.02]">
+                  <NeuralCard className="p-3 border-white/5 hover:border-bio-cyan/30 bg-white/[0.02] min-w-0">
                     <h4 className="text-[10px] font-bold text-white/80 truncate">{email.subject}</h4>
                     <p className="text-[9px] text-white/30 mt-1 truncate font-mono">{email.sender.split('<')[0]}</p>
                   </NeuralCard>
@@ -126,22 +134,22 @@ export function PeripheralPanel() {
           </div>
         </section>
         {/* Temporal Stream */}
-        <section>
+        <section className="min-w-0">
           <div className="flex items-center justify-between mb-4 px-1">
             <div className={cn(
               "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-500",
               tasks.length > 0 ? 'text-[#10b981] drop-shadow-[0_0_8px_#10b981]' : 'text-white/20'
             )}>
-              <Calendar size={12} />
+              <Calendar size={12} className="shrink-0" />
               Temporal Buffer
             </div>
           </div>
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 min-w-0">
             <AnimatePresence mode="popLayout">
               {tasks.length > 0 ? tasks.map((task) => (
                 <motion.div key={task.id} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-                  <NeuralCard className="p-3 border-white/5 flex items-center gap-3 bg-white/[0.02]">
-                    <div className={cn("h-1 w-1 rounded-full", task.status === 'completed' ? 'bg-white/10' : 'bg-[#10b981] animate-pulse')} />
+                  <NeuralCard className="p-3 border-white/5 flex items-center gap-3 bg-white/[0.02] min-w-0">
+                    <div className={cn("h-1 w-1 rounded-full shrink-0", task.status === 'completed' ? 'bg-white/10' : 'bg-[#10b981] animate-pulse')} />
                     <h4 className={cn("text-[9px] truncate flex-1 font-medium", task.status === 'completed' ? 'text-white/20 line-through' : 'text-white/70')}>
                       {task.title}
                     </h4>

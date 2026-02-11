@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { BrainCircuit, Cpu, Mail, Calendar, Zap, RefreshCw } from "lucide-react";
+import { BrainCircuit, Cpu, Mail, Calendar, Zap } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { ConnectedService } from "../../../worker/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -90,6 +90,7 @@ function Orb({
       ? "border-[#10b981]/40 bg-[#10b981]/10 text-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.2)]"
       : "border-white/10 bg-white/5 text-white/20"
   };
+  const hasCount = count !== undefined && count > 0;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -102,8 +103,8 @@ function Orb({
           )}>
             <Icon size={14} className={cn(active && "animate-pulse")} />
           </div>
-          {count && count > 1 && (
-            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-bio-cyan text-neural-bg text-[8px] font-black flex items-center justify-center border border-[#0a0e1a]">
+          {hasCount && (
+            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-bio-cyan text-neural-bg text-[8px] font-black flex items-center justify-center border border-[#0a0e1a] shadow-sm">
               {count}
             </div>
           )}
@@ -118,7 +119,7 @@ function Orb({
           <span>{label}</span>
         </div>
         <p className={active ? "text-[#10b981]" : "text-white/40"}>
-          {active ? `LINK ACTIVE (${count || 1} NODES)` : 'NODE DISCONNECTED'}
+          {active ? `LINK ACTIVE ${hasCount ? `(${count} NODES)` : ''}` : 'NODE DISCONNECTED'}
         </p>
         {emails.length > 0 && (
           <div className="mt-2 space-y-1 pt-2 border-t border-white/5">
