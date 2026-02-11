@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { BrainCircuit, Cpu, Mail, Calendar, Info, Zap } from "lucide-react";
+import { BrainCircuit, Cpu, Mail, Calendar, Zap, RefreshCw } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { ConnectedService } from "../../../worker/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,7 +23,6 @@ export function TopBar() {
     const interval = setInterval(fetchStatus, 30000);
     const handleAuth = (e: MessageEvent) => {
       if (e.data?.type === 'AUTH_SUCCESS') {
-        console.log("[CANS] Synaptic Link Confirmed, refreshing TopBar");
         fetchStatus();
       }
     };
@@ -33,7 +32,7 @@ export function TopBar() {
       window.removeEventListener('message', handleAuth);
     };
   }, [fetchStatus]);
-  const getStatus = (name: string) => services.find(s => s.name === name);
+  const activeCount = services.filter(s => s.status === 'active').length;
   return (
     <TooltipProvider>
       <header className="h-16 shrink-0 border-b border-white/5 bg-[#0a0e1a]/80 backdrop-blur-xl flex items-center justify-between px-6 z-40 relative">
@@ -55,9 +54,9 @@ export function TopBar() {
           <span className="text-[10px] uppercase tracking-widest text-bio-cyan/60 font-mono hidden md:block">Neural OS v1.2</span>
         </div>
         <div className="flex items-center gap-4">
-          <Orb icon={Mail} service={getStatus('gmail')} label="Gmail Node" color="cyan" connecting={isSyncing} />
-          <Orb icon={Calendar} service={getStatus('calendar')} label="Temporal Node" color="violet" connecting={isSyncing} />
-          <Orb icon={Cpu} service={{ status: 'active', name: 'system', scopes: [] }} label="Core Processor" color="green" connecting={isSyncing} />
+          <Orb icon={Mail} count={services.length} active={activeCount > 0} label="Synaptic Comms" color="cyan" connecting={isSyncing} emails={services.map(s => s.email).filter(Boolean) as string[]} />
+          <Orb icon={Calendar} active={activeCount > 0} label="Temporal Nodes" color="violet" connecting={isSyncing} />
+          <Orb icon={Cpu} active={true} label="Core Processor" color="green" connecting={isSyncing} />
         </div>
       </header>
     </TooltipProvider>
@@ -65,26 +64,29 @@ export function TopBar() {
 }
 function Orb({
   icon: Icon,
-  service,
+  count,
+  active,
   label,
   color,
-  connecting
+  connecting,
+  emails = []
 }: {
   icon: any;
-  service?: ConnectedService;
+  count?: number;
+  active: boolean;
   label: string;
   color: 'cyan' | 'violet' | 'green';
   connecting?: boolean;
+  emails?: string[];
 }) {
-  const isActive = service?.status === 'active';
   const colorClasses = {
-    cyan: isActive
+    cyan: active
       ? "border-bio-cyan/40 bg-bio-cyan/10 text-bio-cyan shadow-[0_0_15px_rgba(0,212,255,0.2)]"
       : "border-white/10 bg-white/5 text-white/20",
-    violet: isActive
+    violet: active
       ? "border-memory-violet/40 bg-memory-violet/10 text-memory-violet shadow-[0_0_15px_rgba(139,92,246,0.2)]"
       : "border-white/10 bg-white/5 text-white/20",
-    green: isActive
+    green: active
       ? "border-[#10b981]/40 bg-[#10b981]/10 text-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.2)]"
       : "border-white/10 bg-white/5 text-white/20"
   };
@@ -96,26 +98,35 @@ function Orb({
             "h-8 w-8 sm:h-9 sm:w-9 rounded-full border flex items-center justify-center transition-all duration-700",
             connecting ? "scale-90 opacity-50 animate-pulse" : "scale-100 opacity-100",
             colorClasses[color],
-            isActive && "border-[#10b981]/60 shadow-[0_0_25px_rgba(16,185,129,0.4)]"
+            active && "border-[#10b981]/60"
           )}>
-            <Icon size={14} className={cn(isActive && "animate-pulse")} />
+            <Icon size={14} className={cn(active && "animate-pulse")} />
           </div>
-          {isActive && (
-            <div className={cn(
-              "absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full animate-ping opacity-70 bg-[#10b981]"
-            )} />
+          {count && count > 1 && (
+            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-bio-cyan text-neural-bg text-[8px] font-black flex items-center justify-center border border-[#0a0e1a]">
+              {count}
+            </div>
+          )}
+          {active && (
+            <div className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full animate-ping opacity-70 bg-[#10b981]" />
           )}
         </div>
       </TooltipTrigger>
       <TooltipContent className="neural-glass border-white/10 text-[10px] uppercase font-bold tracking-widest p-3">
         <div className="flex items-center gap-2 mb-1">
-          <div className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-[#10b981] animate-pulse" : "bg-white/20")} />
+          <div className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-[#10b981] animate-pulse" : "bg-white/20")} />
           <span>{label}</span>
         </div>
-        <p className={isActive ? "text-[#10b981]" : "text-white/40"}>
-          {isActive ? 'SYNAPTIC LINK ACTIVE' : 'NODE DISCONNECTED'}
+        <p className={active ? "text-[#10b981]" : "text-white/40"}>
+          {active ? `LINK ACTIVE (${count || 1} NODES)` : 'NODE DISCONNECTED'}
         </p>
-        {service?.lastSync && <p className="text-white/20 mt-1 font-mono">STAMP: {new Date(service.lastSync).toLocaleTimeString()}</p>}
+        {emails.length > 0 && (
+          <div className="mt-2 space-y-1 pt-2 border-t border-white/5">
+            {emails.map(e => (
+              <p key={e} className="text-[8px] text-white/40 truncate font-mono">{e}</p>
+            ))}
+          </div>
+        )}
       </TooltipContent>
     </Tooltip>
   );

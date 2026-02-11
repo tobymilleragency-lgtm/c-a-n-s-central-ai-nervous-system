@@ -7,6 +7,7 @@ export interface ServiceTokens {
   expiry_date?: number;
   scopes: string[];
   email?: string;
+  display_name?: string;
 }
 export interface Task {
   id: string;
@@ -77,21 +78,39 @@ export class AppController extends DurableObject<Env> {
   async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens, email: string): Promise<void> {
     const tokenKey = `tokens:${sessionId}:${service}:${email}`;
     const metaKey = `service:${sessionId}:${service}:${email}`;
+    // Store tokens
     await this.ctx.storage.put(tokenKey, { ...tokens, email });
+    // Store metadata for listing
     const meta: ConnectedService = {
       name: service,
       email: email,
+      display_name: tokens.display_name,
       status: 'active',
       lastSync: new Date().toISOString(),
       connectedAt: new Date().toISOString(),
       scopes: tokens.scopes
     };
     await this.ctx.storage.put(metaKey, meta);
+    // Keep track of account emails for this service/session
     const accountsKey = `accounts:${sessionId}:${service}`;
     const accounts = await this.ctx.storage.get<string[]>(accountsKey) || [];
     if (!accounts.includes(email)) {
       accounts.push(email);
       await this.ctx.storage.put(accountsKey, accounts);
+    }
+  }
+  async disconnectService(sessionId: string, service: string, email: string): Promise<void> {
+    const tokenKey = `tokens:${sessionId}:${service}:${email}`;
+    const metaKey = `service:${sessionId}:${service}:${email}`;
+    const accountsKey = `accounts:${sessionId}:${service}`;
+    await this.ctx.storage.delete(tokenKey);
+    await this.ctx.storage.delete(metaKey);
+    const accounts = await this.ctx.storage.get<string[]>(accountsKey) || [];
+    const updatedAccounts = accounts.filter(e => e !== email);
+    if (updatedAccounts.length === 0) {
+      await this.ctx.storage.delete(accountsKey);
+    } else {
+      await this.ctx.storage.put(accountsKey, updatedAccounts);
     }
   }
   async getServiceTokens(sessionId: string, service: string, email?: string): Promise<ServiceTokens | null> {
@@ -106,11 +125,7 @@ export class AppController extends DurableObject<Env> {
   async listConnectedServices(sessionId: string): Promise<ConnectedService[]> {
     const options = { prefix: `service:${sessionId}:` };
     const list = await this.ctx.storage.list<ConnectedService>(options);
-    const storedServices = Array.from(list.values());
-    if (storedServices.length > 0) return storedServices;
-    return [
-      { name: 'google', status: 'disconnected', scopes: [] }
-    ];
+    return Array.from(list.values());
   }
   async addSession(sessionId: string, title?: string): Promise<void> {
     await this.ensureLoaded();
@@ -128,9 +143,6 @@ export class AppController extends DurableObject<Env> {
     const deleted = this.sessions.delete(sessionId);
     if (deleted) {
       await this.persist();
-      const allKeysList = await this.ctx.storage.list({ prefix: `${sessionId}:` });
-      // Clean up all related session data including tokens, messages, etc.
-      // We use specific prefixes usually but cleaning the whole prefix is safer for DO cleanup
       const specificPrefixes = ['msg:', 'task:', 'mem:', 'service:', 'tokens:', 'accounts:'];
       for (const prefix of specificPrefixes) {
         const keys = await this.ctx.storage.list({ prefix: `${prefix}${sessionId}:` });

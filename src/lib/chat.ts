@@ -19,10 +19,7 @@ class ChatService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, model, stream: !!onChunk }),
       });
-      if (response.status === 401) {
-        // Trigger re-auth popup automatically if possible, but usually we just want to signal the UI
-        throw new Error("Synaptic Link Required");
-      }
+      if (response.status === 401) throw new Error("Synaptic Link Required");
       if (!response.ok) throw new Error(await response.text());
       if (onChunk && response.body) {
         const reader = response.body.getReader();
@@ -40,20 +37,26 @@ class ChatService {
     }
   }
   async getMessages(): Promise<ChatResponse> { try { const r = await fetch(`${this.baseUrl}/messages`); return await r.json(); } catch { return { success: false }; } }
-  async getDriveFiles(): Promise<any[]> { try { const r = await fetch(`${this.baseUrl}/drive`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async getDirections(origin: string, destination: string): Promise<any> {
-    try {
-      const r = await fetch(`${this.baseUrl}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`);
-      const j = await r.json();
-      return j.success ? j.data : null;
-    } catch { return null; }
-  }
   async getServiceStatus(): Promise<ConnectedService[]> {
     try {
       const r = await fetch(`/api/status/services?sessionId=${this.sessionId}`);
       const j = await r.json();
       return j.success ? j.data : [];
     } catch { return []; }
+  }
+  async disconnectNode(service: string, email: string): Promise<boolean> {
+    try {
+      const r = await fetch(`/api/status/services/${encodeURIComponent(email)}?sessionId=${this.sessionId}`, {
+        method: 'DELETE'
+      });
+      const j = await r.json();
+      return !!j.success;
+    } catch { return false; }
+  }
+  async getAuthUrl(service: string): Promise<string | null> {
+    try {
+      return `/api/auth/google-popup?state=${this.sessionId}`;
+    } catch { return null; }
   }
   async getSystemStats(): Promise<SystemStats | null> {
     try {
@@ -62,23 +65,15 @@ class ChatService {
       return j.success ? j.data : null;
     } catch { return null; }
   }
-  async getAuthUrl(service: string): Promise<string | null> {
-    try {
-      const r = await fetch(`/api/auth/google?sessionId=${this.sessionId}&popup=true`);
-      const j = await r.json();
-      return j.success ? j.data.url : null;
-    } catch { return null; }
-  }
   async getEmails(): Promise<GmailMessage[]> { try { const r = await fetch(`${this.baseUrl}/emails`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async listSessions(): Promise<SessionInfo[]> { try { const r = await fetch('/api/sessions'); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async getMemories(): Promise<any[]> { try { const r = await fetch(`/api/memories?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
-  async deleteMemory(id: string): Promise<boolean> { try { const r = await fetch(`/api/memories/${id}?sessionId=${this.sessionId}`, { method: 'DELETE' }); const j = await r.json(); return !!j.success; } catch { return false; } }
+  async getDriveFiles(): Promise<any[]> { try { const r = await fetch(`${this.baseUrl}/drive`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
   async getTasks(): Promise<any[]> { try { const r = await fetch(`/api/tasks?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
+  async getMemories(): Promise<any[]> { try { const r = await fetch(`/api/memories?sessionId=${this.sessionId}`); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
   async updateTaskStatus(id: string, s: string): Promise<boolean> { try { const r = await fetch(`/api/tasks/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: s, sessionId: this.sessionId }) }); const j = await r.json(); return !!j.success; } catch { return false; } }
+  async deleteMemory(id: string): Promise<boolean> { try { const r = await fetch(`/api/memories/${id}?sessionId=${this.sessionId}`, { method: 'DELETE' }); const j = await r.json(); return !!j.success; } catch { return false; } }
+  async listSessions(): Promise<SessionInfo[]> { try { const r = await fetch('/api/sessions'); const j = await r.json(); return j.success ? j.data : []; } catch { return []; } }
+  async getDirections(origin: string, destination: string): Promise<any> { try { const r = await fetch(`${this.baseUrl}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`); const j = await r.json(); return j.success ? j.data : null; } catch { return null; } }
   getSessionId(): string { return this.sessionId; }
-  sendContextualQuery(context: string): void {
-    window.location.href = `/?context=${encodeURIComponent(context)}`;
-  }
 }
 export const chatService = new ChatService();
 export const renderToolCall = (tc: ToolCall): { label: string; data?: any; type: string } => {

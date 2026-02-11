@@ -21,21 +21,33 @@ export function coreRoutes(app: Hono<{ Bindings: Env }>) {
     });
 }
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-    app.get('/api/auth/google', async (c) => {
-        const sessionId = c.req.query('sessionId') || 'default';
+    app.get('/api/auth/google-popup', async (c) => {
+        const sessionId = c.req.query('state') || 'default';
         const clientId = c.env.GOOGLE_CLIENT_ID || 'MOCK_ID';
         const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
         const scopes = [
+            'openid',
+            'email',
+            'profile',
             'https://www.googleapis.com/auth/gmail.readonly',
-            'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.modify',
+            'https://www.googleapis.com/auth/gmail.compose',
             'https://www.googleapis.com/auth/calendar.readonly',
-            'https://www.googleapis.com/auth/calendar.events',
-            'https://www.googleapis.com/auth/drive.readonly',
-            'https://www.googleapis.com/auth/userinfo.email',
-            'https://www.googleapis.com/auth/userinfo.profile'
+            'https://www.googleapis.com/auth/drive.readonly'
         ].join(' ');
         const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${sessionId}&access_type=offline&prompt=consent`;
-        return c.json({ success: true, data: { url } });
+        return c.html(`
+            <html>
+                <body style="background: #0a0e1a; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif;">
+                    <div style="text-align: center;">
+                        <div style="width: 40px; height: 40px; border: 3px solid rgba(0,212,255,0.2); border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                        <p style="text-transform: uppercase; letter-spacing: 0.2em; font-size: 12px; color: #00d4ff;">Redirecting to Synaptic Bridge...</p>
+                    </div>
+                    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+                    <script>window.location.href = '${url}';</script>
+                </body>
+            </html>
+        `);
     });
     app.get('/api/auth/callback', async (c) => {
         const code = c.req.query('code');
@@ -63,29 +75,32 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             });
             const userData = await userResponse.json() as any;
             const email = userData.email;
+            const displayName = userData.name || userData.given_name || email.split('@')[0];
             const controller = getAppController(c.env);
             await controller.saveServiceTokens(sessionId, 'google', {
                 access_token: tokens.access_token,
                 refresh_token: tokens.refresh_token,
                 expiry_date: Date.now() + (tokens.expires_in * 1000),
-                scopes: tokens.scope?.split(' ') || []
+                scopes: tokens.scope?.split(' ') || [],
+                display_name: displayName
             }, email);
             return c.html(`
                 <html>
                     <body style="background: #0a0e1a; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif;">
                         <script>
-                            window.opener.postMessage({ 
-                                type: 'AUTH_SUCCESS', 
-                                service: 'google', 
+                            window.opener.postMessage({
+                                type: 'AUTH_SUCCESS',
+                                service: 'google',
                                 email: '${email}',
-                                status: 'active' 
+                                display_name: '${displayName}',
+                                status: 'active'
                             }, '*');
                             setTimeout(() => window.close(), 1200);
                         </script>
                         <div style="text-align: center; border: 1px solid rgba(0,212,255,0.2); padding: 40px; border-radius: 20px; background: rgba(0,212,255,0.05); max-width: 400px;">
                             <h2 style="color: #10b981; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 10px;">Synaptic Link Established</h2>
-                            <p style="color: white; font-weight: bold; margin: 10px 0;">${email}</p>
-                            <p style="color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 20px;">NEURAL PATHWAY SYNCED. RETURNING TO CORE...</p>
+                            <p style="color: white; font-weight: bold; margin: 10px 0;">${displayName}</p>
+                            <p style="color: rgba(255,255,255,0.4); font-size: 10px; margin-top: 20px;">NEURAL PATHWAY SYNCED. RETURNING TO CORE...</p>
                         </div>
                     </body>
                 </html>
@@ -94,6 +109,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             console.error("OAuth Error:", error);
             return c.text(`Authentication error: ${error instanceof Error ? error.message : 'Unknown'}`, 500);
         }
+    });
+    app.delete('/api/status/services/:email', async (c) => {
+        const sessionId = c.req.query('sessionId') || 'default';
+        const email = c.req.param('email');
+        const controller = getAppController(c.env);
+        await controller.disconnectService(sessionId, 'google', email);
+        return c.json({ success: true });
     });
     app.get('/api/status/services', async (c) => {
         const sessionId = c.req.query('sessionId') || 'default';

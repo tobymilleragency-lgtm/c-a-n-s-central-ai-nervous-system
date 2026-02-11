@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { chatService } from "@/lib/chat";
 import { ConnectedService, SystemStats } from "../../worker/types";
-import { Settings, Shield, Mail, Database, Zap, RefreshCw, CheckCircle2, UserPlus } from "lucide-react";
+import { Settings, Shield, Mail, Database, Zap, RefreshCw, CheckCircle2, UserPlus, Trash2, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ export function SettingsPage() {
         chatService.getServiceStatus(),
         chatService.getSystemStats()
       ]);
-      setServices(status);
+      setServices(Array.isArray(status) ? status : []);
       setStats(sysStats);
     } catch (error) {
       console.error("System calibration failed:", error);
@@ -32,7 +32,7 @@ export function SettingsPage() {
     fetchStatus();
     const handleAuth = (e: MessageEvent) => {
       if (e.data?.type === 'AUTH_SUCCESS') {
-        toast.success(`Synaptic Link established: ${e.data.email}`);
+        toast.success(`Synaptic Link established: ${e.data.display_name || e.data.email}`);
         fetchStatus();
       }
     };
@@ -44,27 +44,42 @@ export function SettingsPage() {
     if (url) {
       window.open(url, 'CANS_AUTH', 'width=600,height=700');
     } else {
-      toast.error("Failed to generate auth link");
+      toast.error("Failed to generate auth bridge");
     }
   };
-  const googleAccounts = services.filter(s => s.name === 'google' || s.name === 'gmail');
+  const handleDisconnect = async (email: string) => {
+    try {
+      const success = await chatService.disconnectNode('google', email);
+      if (success) {
+        toast.success(`Synaptic Node pruned: ${email}`);
+        fetchStatus();
+      } else {
+        toast.error("Pruning sequence failed");
+      }
+    } catch (e) {
+      toast.error("Critical fault during disconnection");
+    }
+  };
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-8 md:py-10 lg:py-12">
           <header className="mb-12">
             <div className="flex items-center gap-4 mb-2">
-              <Settings className="text-bio-cyan w-8 h-8" />
+              <div className="h-10 w-10 rounded-xl bg-bio-cyan/10 border border-bio-cyan/20 flex items-center justify-center">
+                <Settings className="text-bio-cyan w-6 h-6" />
+              </div>
               <h1 className="text-3xl font-black tracking-tighter uppercase">System Configuration</h1>
             </div>
-            <p className="text-muted-foreground font-medium">Manage your neural pathways and external account bridges.</p>
+            <p className="text-muted-foreground font-medium">Manage your multi-synaptic links and operational load.</p>
           </header>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Account Management */}
             <section className="space-y-6">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
                   <Shield className="text-bio-cyan w-4 h-4" />
-                  <h2 className="text-sm font-black uppercase tracking-widest text-white/50">Synaptic Identifiers</h2>
+                  <h2 className="text-sm font-black uppercase tracking-widest text-white/40">Linked Identity Nodes</h2>
                 </div>
                 <Button
                   onClick={handleConnect}
@@ -72,90 +87,100 @@ export function SettingsPage() {
                   size="sm"
                   className="text-[10px] uppercase font-black text-bio-cyan hover:bg-bio-cyan/10"
                 >
-                  <UserPlus size={14} className="mr-2" /> Link Node
+                  <UserPlus size={14} className="mr-2" /> Add Google Link
                 </Button>
               </div>
-              <NeuralCard className="p-6 space-y-6 border-bio-cyan/10">
-                <div className="space-y-4">
-                  <AnimatePresence mode="popLayout">
-                    {googleAccounts.length > 0 ? googleAccounts.map((account, idx) => (
+              <NeuralCard className="p-6 space-y-4 border-bio-cyan/10 bg-bio-cyan/[0.02]">
+                <AnimatePresence mode="popLayout">
+                  {services.length > 0 ? (
+                    services.map((account, idx) => (
                       <motion.div
                         key={account.email || idx}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-bio-cyan/20 transition-all"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-bio-cyan/30 transition-all"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-full bg-bio-cyan/10 flex items-center justify-center text-bio-cyan">
+                          <div className="h-10 w-10 rounded-full bg-bio-cyan/10 flex items-center justify-center text-bio-cyan relative">
                             <Mail size={18} />
+                            <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-[#10b981] rounded-full border-2 border-[#0a0e1a] animate-pulse" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-white/90">{account.email}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div className="h-1.5 w-1.5 rounded-full bg-[#10b981] animate-pulse" />
-                              <span className="text-[9px] uppercase font-black text-[#10b981] tracking-widest">Active Sync</span>
-                            </div>
+                            <p className="text-sm font-bold text-white/90">{account.display_name || 'Synaptic Node'}</p>
+                            <p className="text-[10px] font-mono text-white/30 uppercase">{account.email}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 size={16} className="text-bio-cyan opacity-40 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </motion.div>
-                    )) : (
-                      <div className="text-center py-10 opacity-20 flex flex-col items-center gap-4">
-                        <Database size={40} />
-                        <p className="text-[10px] uppercase font-black tracking-[0.2em]">No Nodes Linked</p>
-                        <Button onClick={handleConnect} variant="outline" className="border-white/20 text-white/40 mt-2">
-                          Initialize First Link
+                        <Button
+                          onClick={() => account.email && handleDisconnect(account.email)}
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-white/20 hover:text-alert-pink hover:bg-alert-pink/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 size={14} />
                         </Button>
-                      </div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 opacity-20 flex flex-col items-center gap-4 border-2 border-dashed border-white/5 rounded-2xl">
+                      <Globe size={40} />
+                      <p className="text-[10px] uppercase font-black tracking-widest">No Synaptic Links found</p>
+                      <Button onClick={handleConnect} variant="outline" className="border-white/10 hover:bg-white/5 text-[9px] uppercase tracking-widest">
+                        Initiate First Connection
+                      </Button>
+                    </div>
+                  )}
+                </AnimatePresence>
                 <div className="pt-6 border-t border-white/5">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-white/60">Auto-Index Shards</p>
-                      <p className="text-[10px] text-white/20">Synthesize data from linked nodes automatically.</p>
+                      <p className="text-xs font-bold text-white/70">Auto-Index Documents</p>
+                      <p className="text-[10px] text-white/30">Sync shards across all linked Drive accounts.</p>
                     </div>
                     <Switch defaultChecked className="data-[state=checked]:bg-bio-cyan" />
                   </div>
                 </div>
               </NeuralCard>
             </section>
+            {/* System Performance */}
             <section className="space-y-6">
               <div className="flex items-center gap-2 px-1">
                 <Zap className="text-memory-violet w-4 h-4" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-white/50">Computational Load</h2>
+                <h2 className="text-sm font-black uppercase tracking-widest text-white/40">Load Telemetry</h2>
               </div>
-              <NeuralCard className="p-6 space-y-8">
+              <NeuralCard className="p-8 space-y-8">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                    <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">Memories</span>
-                    <p className="text-xl font-black text-bio-cyan">{stats?.memories || 0}</p>
+                  <div className="bg-white/5 p-5 rounded-xl border border-white/5 group hover:border-bio-cyan/20 transition-all">
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Memory Shards</span>
+                    <p className="text-2xl font-black text-bio-cyan mt-1">{stats?.memories || 0}</p>
                   </div>
-                  <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                    <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">Temporal Nodes</span>
-                    <p className="text-xl font-black text-memory-violet">{stats?.tasks || 0}</p>
+                  <div className="bg-white/5 p-5 rounded-xl border border-white/5 group hover:border-memory-violet/20 transition-all">
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Temporal Links</span>
+                    <p className="text-2xl font-black text-memory-violet mt-1">{stats?.tasks || 0}</p>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-3">
-                    <span className="text-white/40">Neural Retention</span>
-                    <span className="text-bio-cyan">Active Indexing</span>
+                    <span className="text-white/30">Synaptic Efficiency</span>
+                    <span className="text-bio-cyan">Optimized</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-bio-cyan w-[45%] shadow-[0_0_15px_rgba(0,212,255,0.4)]" />
+                    <motion.div 
+                      className="h-full bg-bio-cyan shadow-[0_0_15px_rgba(0,212,255,0.4)]"
+                      initial={{ width: 0 }}
+                      animate={{ width: "78%" }}
+                      transition={{ duration: 2, ease: "easeOut" }}
+                    />
                   </div>
                 </div>
                 <div className="pt-4">
                   <Button
                     onClick={fetchStatus}
+                    disabled={loading}
                     variant="outline"
                     className="w-full h-12 border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-white/10"
                   >
                     <RefreshCw size={14} className={cn("mr-2", loading && "animate-spin")} />
-                    Calibrate System State
+                    Refresh Core Telemetry
                   </Button>
                 </div>
               </NeuralCard>
