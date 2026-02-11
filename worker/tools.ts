@@ -4,28 +4,36 @@ import { getAppController } from './core-utils';
 export type ToolResult = WeatherResult | { content: string } | { emails: GmailMessage[] } | { events: any[] } | { files: any[] } | { success: boolean, id?: string } | { route: any } | ErrorResult;
 async function getGoogleAccessToken(sessionId: string, env: any): Promise<string> {
   const controller = getAppController(env);
-  const tokens = await (controller as any).ctx.storage.get(`tokens:${sessionId}:gmail`);
-  if (!tokens) throw new Error("Google account not linked.");
+  // Correctly use the controller method instead of direct storage access
+  const tokens = await controller.getServiceTokens(sessionId, 'google');
+  if (!tokens) {
+    throw new Error("Synaptic Link Required: Google account not linked.");
+  }
   if (tokens.expiry_date && Date.now() > tokens.expiry_date - 60000 && tokens.refresh_token) {
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: env.GOOGLE_CLIENT_ID,
-        client_secret: env.GOOGLE_CLIENT_SECRET,
-        refresh_token: tokens.refresh_token,
-        grant_type: 'refresh_token'
-      })
-    });
-    const newTokens = await response.json() as any;
-    if (newTokens.access_token) {
-      const updated = {
-        ...tokens,
-        access_token: newTokens.access_token,
-        expiry_date: Date.now() + (newTokens.expires_in * 1000)
-      };
-      await (controller as any).saveServiceTokens(sessionId, 'gmail', updated);
-      return newTokens.access_token;
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: env.GOOGLE_CLIENT_ID,
+          client_secret: env.GOOGLE_CLIENT_SECRET,
+          refresh_token: tokens.refresh_token,
+          grant_type: 'refresh_token'
+        })
+      });
+      const newTokens = await response.json() as any;
+      if (newTokens.access_token) {
+        const updated = {
+          ...tokens,
+          access_token: newTokens.access_token,
+          expiry_date: Date.now() + (newTokens.expires_in * 1000)
+        };
+        // Persist refreshed tokens using the standard identifier 'google'
+        await controller.saveServiceTokens(sessionId, 'google', updated, tokens.email || 'unknown');
+        return newTokens.access_token;
+      }
+    } catch (e) {
+      console.error("[CANS] Token refresh failed:", e);
     }
   }
   return tokens.access_token;

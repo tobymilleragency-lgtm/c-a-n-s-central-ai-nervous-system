@@ -30,12 +30,17 @@ export function ChatInterface() {
     const res = await chatService.getMessages();
     if (res.success && res.data) setMessages(res.data.messages);
   }, []);
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((force = false) => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const threshold = 300; // Increased threshold for larger content jumps
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
+      if (force || isAtBottom) {
+        scrollRef.current.scrollTo({
+          top: scrollHeight,
+          behavior: force ? 'auto' : 'smooth'
+        });
+      }
     }
   }, []);
   const sendMessage = useCallback(async (text: string) => {
@@ -75,14 +80,16 @@ export function ChatInterface() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar py-8 md:py-10 lg:py-12 pb-40">
         <div className="max-w-4xl mx-auto space-y-12">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-center space-y-8 opacity-40 py-24">
+            <div className="flex flex-col items-center justify-center text-center space-y-8 opacity-40 py-24 min-h-[40vh]">
               <div className="relative">
                 <BrainCircuit className="text-bio-cyan w-20 h-20 animate-pulse" />
                 <div className="absolute inset-0 bg-bio-cyan/20 blur-3xl rounded-full" />
               </div>
               <div>
                 <p className="text-sm uppercase tracking-[0.5em] font-black text-bio-cyan">Synaptic Core Online</p>
-                <p className="text-[11px] text-white/40 mt-3 font-mono uppercase tracking-widest max-w-xs leading-relaxed">System initialized. Neural pathways calibrated. Awaiting synaptic input from host.</p>
+                <p className="text-[11px] text-white/40 mt-3 font-mono uppercase tracking-widest max-w-xs leading-relaxed mx-auto">
+                  System initialized. Neural pathways calibrated. Awaiting synaptic input from host.
+                </p>
               </div>
             </div>
           )}

@@ -1,20 +1,18 @@
 import OpenAI from 'openai';
 import type { Message, ToolCall } from './types';
 import { getToolDefinitions, executeTool } from './tools';
-import { ChatCompletionMessageFunctionToolCall } from 'openai/resources/index.mjs';
 export class ChatHandler {
   private client: OpenAI;
   private model: string;
   private env: any;
   constructor(aiGatewayUrl: string, apiKey: string, model: string, env: any) {
-    this.client = new OpenAI({ 
-      baseURL: aiGatewayUrl, 
+    this.client = new OpenAI({
+      baseURL: aiGatewayUrl,
       apiKey: apiKey,
       defaultHeaders: {
         'cf-aig-cache': 'true'
       }
     });
-    // Ensure we use a model compatible with the AI Gateway and our tool definitions
     this.model = model.includes('gemini') ? '@cf/google/gemini-1.5-flash' : model;
     this.env = env;
   }
@@ -47,14 +45,15 @@ export class ChatHandler {
   }
   private async handleStreamResponse(stream: any, message: string, history: Message[], sessionId: string, onChunk: (chunk: string) => void) {
     let fullContent = '';
-    const accumulatedToolCalls: ChatCompletionMessageFunctionToolCall[] = [];
+    const accumulatedToolCalls: any[] = [];
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta;
-      if (delta?.content) {
+      const delta = chunk.choices?.[0]?.delta;
+      if (!delta) continue;
+      if (delta.content) {
         fullContent += delta.content;
         onChunk(delta.content);
       }
-      if (delta?.tool_calls) {
+      if (delta.tool_calls) {
         for (const dtc of delta.tool_calls) {
           const i = dtc.index;
           if (!accumulatedToolCalls[i]) {
@@ -78,7 +77,7 @@ export class ChatHandler {
     return { content: fullContent };
   }
   private async handleNonStreamResponse(completion: any, message: string, history: Message[], sessionId: string) {
-    const responseMessage = completion.choices[0]?.message;
+    const responseMessage = completion.choices?.[0]?.message;
     if (!responseMessage) return { content: 'Issue processing request.' };
     if (!responseMessage.tool_calls) return { content: responseMessage.content || 'No response.' };
     const toolCalls = await this.executeToolCalls(responseMessage.tool_calls, sessionId);
@@ -116,7 +115,7 @@ export class ChatHandler {
         }))
       ]
     });
-    return followUp.choices[0]?.message?.content || 'Synaptic cycle finalized.';
+    return followUp.choices?.[0]?.message?.content || 'Synaptic cycle finalized.';
   }
   private buildConversationMessages(userMessage: string, history: Message[]) {
     return [
@@ -138,7 +137,7 @@ Synaptic Instructions:
       { role: 'user' as const, content: userMessage }
     ];
   }
-  updateModel(newModel: string): void { 
+  updateModel(newModel: string): void {
     this.model = newModel.includes('gemini') ? '@cf/google/gemini-1.5-flash' : newModel;
   }
 }

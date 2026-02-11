@@ -109,8 +109,7 @@ export class AppController extends DurableObject<Env> {
     const storedServices = Array.from(list.values());
     if (storedServices.length > 0) return storedServices;
     return [
-      { name: 'gmail', status: 'disconnected', scopes: [] },
-      { name: 'calendar', status: 'disconnected', scopes: [] }
+      { name: 'google', status: 'disconnected', scopes: [] }
     ];
   }
   async addSession(sessionId: string, title?: string): Promise<void> {
@@ -129,17 +128,14 @@ export class AppController extends DurableObject<Env> {
     const deleted = this.sessions.delete(sessionId);
     if (deleted) {
       await this.persist();
-      const msgKeys = await this.ctx.storage.list({ prefix: `msg:${sessionId}:` });
-      const taskKeys = await this.ctx.storage.list({ prefix: `task:${sessionId}:` });
-      const memKeys = await this.ctx.storage.list({ prefix: `mem:${sessionId}:` });
-      const serviceKeys = await this.ctx.storage.list({ prefix: `service:${sessionId}:` });
-      const tokenKeys = await this.ctx.storage.list({ prefix: `tokens:${sessionId}:` });
-      const accountKeys = await this.ctx.storage.list({ prefix: `accounts:${sessionId}:` });
-      const allKeys = [
-        ...msgKeys.keys(), ...taskKeys.keys(), ...memKeys.keys(),
-        ...serviceKeys.keys(), ...tokenKeys.keys(), ...accountKeys.keys()
-      ];
-      if (allKeys.length > 0) await this.ctx.storage.delete(allKeys);
+      const allKeysList = await this.ctx.storage.list({ prefix: `${sessionId}:` });
+      // Clean up all related session data including tokens, messages, etc.
+      // We use specific prefixes usually but cleaning the whole prefix is safer for DO cleanup
+      const specificPrefixes = ['msg:', 'task:', 'mem:', 'service:', 'tokens:', 'accounts:'];
+      for (const prefix of specificPrefixes) {
+        const keys = await this.ctx.storage.list({ prefix: `${prefix}${sessionId}:` });
+        if (keys.size > 0) await this.ctx.storage.delete(Array.from(keys.keys()));
+      }
     }
     return deleted;
   }
