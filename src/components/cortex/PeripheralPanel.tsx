@@ -1,170 +1,156 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { NeuralCard } from "@/components/ui/neural-card";
-import { Mail, Calendar, Info, Clock, ArrowUpRight, ShieldAlert, BrainCircuit, Zap, CheckCircle2 } from "lucide-react";
+import { Mail, Calendar, Info, Clock, BrainCircuit, Zap, CheckCircle2, Activity, ShieldAlert } from "lucide-react";
 import { chatService } from "@/lib/chat";
 import { ConnectedService, GmailMessage } from "../../../worker/types";
+import { AreaChart, Area, ResponsiveContainer, RadialBarChart, RadialBar, Cell } from 'recharts';
 import { cn } from "@/lib/utils";
 export function PeripheralPanel() {
   const [services, setServices] = useState<ConnectedService[]>([]);
   const [emails, setEmails] = useState<GmailMessage[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
-  const [memories, setMemories] = useState<any[]>([]);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const [telemetry, setTelemetry] = useState(() => 
+    Array.from({ length: 12 }, (_, i) => ({ value: 20 + Math.random() * 60 }))
+  );
   const fetchData = useCallback(async () => {
     try {
-      const [status, emailData, taskData, memoryData] = await Promise.all([
+      const [status, emailData, taskData] = await Promise.all([
         chatService.getServiceStatus(),
         chatService.getEmails(),
-        chatService.getTasks(),
-        chatService.getMemories()
+        chatService.getTasks()
       ]);
       setServices(Array.isArray(status) ? status : []);
       setEmails(Array.isArray(emailData) ? emailData.slice(0, 3) : []);
       setTasks(Array.isArray(taskData) ? taskData.slice(0, 3) : []);
-      setMemories(Array.isArray(memoryData) ? memoryData.slice(0, 1) : []);
-      setLastUpdate(Date.now());
+      setTelemetry(prev => [...prev.slice(1), { value: 20 + Math.random() * 60 }]);
     } catch (error) {
       console.error("Peripheral failure:", error);
     }
   }, []);
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 20000);
-    const handleAuth = (e: MessageEvent) => {
-      if (e.data?.type === 'AUTH_SUCCESS') {
-        fetchData();
-      }
-    };
-    window.addEventListener('message', handleAuth);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('message', handleAuth);
-    };
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, [fetchData]);
   const isConnected = (name: string) => services.some(s => s.name === name && s.status === 'active');
-  const systemLinked = isConnected('gmail') || isConnected('calendar');
+  const radialData = useMemo(() => [
+    { name: 'Gmail', value: isConnected('gmail') ? 100 : 20, fill: '#00d4ff' },
+    { name: 'Temporal', value: isConnected('calendar') ? 100 : 20, fill: '#8b5cf6' },
+    { name: 'System', value: 100, fill: '#10b981' },
+  ], [services]);
   return (
     <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar">
-      <div>
-        <div className="flex items-center justify-between mb-6">
+      {/* Neural Telemetry */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
           <h3 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black flex items-center gap-2">
-            <Info size={12} className="text-bio-cyan" />
-            Peripheral Awareness
+            <Activity size={12} className="text-bio-cyan" />
+            Neural Telemetry
           </h3>
-          {systemLinked && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10b981]/10 border border-[#10b981]/20">
-              <div className="h-1 w-1 rounded-full bg-[#10b981] animate-pulse" />
-              <span className="text-[8px] font-black text-[#10b981] uppercase tracking-tighter">Link Active</span>
-            </div>
-          )}
+          <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
-        {systemLinked ? (
-          <NeuralCard className="p-4 border-[#10b981]/20 bg-[#10b981]/5 mb-8 animate-synaptic-fire">
-            <div className="flex gap-3">
-              <CheckCircle2 size={16} className="text-[#10b981] shrink-0" />
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-[#10b981] uppercase tracking-widest">Synapse Secured</p>
-                <p className="text-[9px] text-white/60 leading-tight">External nodes successfully integrated into cortex stream.</p>
+        <div className="h-24 w-full opacity-60">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={telemetry}>
+              <defs>
+                <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey="value" stroke="#00d4ff" fillOpacity={1} fill="url(#colorVal)" strokeWidth={1} isAnimationActive={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+      {/* Pathway Health */}
+      <section className="flex items-center gap-4">
+        <div className="h-24 w-24">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart innerRadius="60%" outerRadius="100%" data={radialData} startAngle={180} endAngle={0}>
+              <RadialBar background dataKey="value" cornerRadius={10} />
+            </RadialBarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex-1 space-y-2">
+          {radialData.map(d => (
+            <div key={d.name} className="flex items-center justify-between">
+              <span className="text-[8px] uppercase tracking-widest text-white/40">{d.name}</span>
+              <div className="h-1 w-12 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full transition-all duration-1000" style={{ width: `${d.value}%`, backgroundColor: d.fill }} />
               </div>
             </div>
-          </NeuralCard>
-        ) : (
-          <NeuralCard className="p-4 border-alert-pink/20 bg-alert-pink/5 mb-8 group cursor-pointer hover:bg-alert-pink/10 transition-colors">
-            <div className="flex gap-3">
-              <ShieldAlert size={16} className="text-alert-pink shrink-0 animate-pulse" />
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-alert-pink uppercase tracking-widest">Link Severed</p>
-                <p className="text-[9px] text-white/50 leading-tight">Workspace connection inactive. Synaptic data limited.</p>
-              </div>
+          ))}
+        </div>
+      </section>
+      <div className="space-y-8">
+        {/* Comms Stream */}
+        <section>
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className={cn(
+              "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest",
+              isConnected('gmail') ? 'text-bio-cyan drop-shadow-[0_0_5px_rgba(0,212,255,0.5)]' : 'text-white/20'
+            )}>
+              <Mail size={12} />
+              Synaptic Comms
             </div>
-          </NeuralCard>
-        )}
-        <div className="space-y-8">
-          {/* Section: Comms */}
-          <section>
-            <div className="flex items-center justify-between mb-4 px-1">
-              <div className={cn(
-                "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors",
-                isConnected('gmail') ? 'text-bio-cyan drop-shadow-[0_0_5px_rgba(0,212,255,0.5)]' : 'text-white/20'
-              )}>
-                <Mail size={12} />
-                Comms Stream
-              </div>
-              <span className="text-[9px] text-white/20 font-mono">{emails.length} Nodes</span>
-            </div>
-            <div className="space-y-2.5">
+          </div>
+          <div className="space-y-2.5">
+            <AnimatePresence mode="popLayout">
               {emails.length > 0 ? emails.map((email) => (
-                <NeuralCard key={email.id} className="p-3 border-white/5 hover:border-bio-cyan/20 group cursor-default transition-all duration-500">
-                  <h4 className="text-[10px] font-bold text-white/80 truncate group-hover:text-bio-cyan transition-colors">{email.subject}</h4>
-                  <p className="text-[9px] text-white/40 mt-1 truncate font-mono uppercase tracking-tighter">{email.sender.split('<')[0]}</p>
-                </NeuralCard>
+                <motion.div key={email.id} layout id={email.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.95 }}>
+                  <NeuralCard className="p-3 border-white/5 hover:border-bio-cyan/30 transition-all cursor-default bg-white/[0.02]">
+                    <h4 className="text-[10px] font-bold text-white/80 truncate">{email.subject}</h4>
+                    <p className="text-[9px] text-white/30 mt-1 truncate font-mono">{email.sender.split('<')[0]}</p>
+                  </NeuralCard>
+                </motion.div>
               )) : (
-                <p className="text-[9px] text-white/20 italic px-2 font-mono">Waiting for transmission...</p>
+                <p className="text-[9px] text-white/20 italic px-2 font-mono">Quiescent...</p>
               )}
+            </AnimatePresence>
+          </div>
+        </section>
+        {/* Temporal Stream */}
+        <section>
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className={cn(
+              "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest",
+              tasks.length > 0 ? 'text-memory-violet drop-shadow-[0_0_5px_rgba(139,92,246,0.5)]' : 'text-white/20'
+            )}>
+              <Calendar size={12} />
+              Temporal Buffer
             </div>
-          </section>
-          {/* Section: Temporal */}
-          <section>
-             <div className="flex items-center justify-between mb-4 px-1">
-              <div className={cn(
-                "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors",
-                isConnected('calendar') || tasks.length > 0 ? 'text-memory-violet drop-shadow-[0_0_5px_rgba(139,92,246,0.5)]' : 'text-white/20'
-              )}>
-                <Calendar size={12} />
-                Temporal Sync
-              </div>
-            </div>
-            <div className="space-y-2.5">
+          </div>
+          <div className="space-y-2.5">
+            <AnimatePresence mode="popLayout">
               {tasks.length > 0 ? tasks.map((task) => (
-                <NeuralCard key={task.id} className={cn(
-                  "p-3 border-white/5 flex items-center gap-3 transition-all",
-                  task.status === 'pending' && "border-memory-violet/20"
-                )}>
-                  <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", task.status === 'completed' ? 'bg-white/10' : 'bg-memory-violet animate-pulse')} />
-                  <h4 className={cn("text-[10px] truncate flex-1 font-medium", task.status === 'completed' ? 'text-white/20 line-through' : 'text-white/70')}>
-                    {task.title}
-                  </h4>
-                  {task.status === 'pending' && <Zap size={10} className="shrink-0 text-memory-violet/60" />}
-                </NeuralCard>
+                <motion.div key={task.id} layout id={task.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+                  <NeuralCard className="p-3 border-white/5 flex items-center gap-3 bg-white/[0.02]">
+                    <div className={cn("h-1 w-1 rounded-full", task.status === 'completed' ? 'bg-white/10' : 'bg-memory-violet animate-pulse')} />
+                    <h4 className={cn("text-[9px] truncate flex-1 font-medium", task.status === 'completed' ? 'text-white/20 line-through' : 'text-white/70')}>
+                      {task.title}
+                    </h4>
+                  </NeuralCard>
+                </motion.div>
               )) : (
-                <p className="text-[9px] text-white/20 italic px-2 font-mono">Timeline synchronized...</p>
+                <p className="text-[9px] text-white/20 italic px-2 font-mono">Synchronized.</p>
               )}
-            </div>
-          </section>
-          {/* Section: Brain Circuit Insight */}
-          {memories.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 text-[10px] text-bio-cyan font-black uppercase tracking-widest mb-4 px-1">
-                <BrainCircuit size={12} />
-                Last Insight
-              </div>
-              <NeuralCard className="p-4 bg-bio-cyan/5 border-bio-cyan/10 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                   <ArrowUpRight size={24} className="text-bio-cyan" />
-                </div>
-                <p className="text-[10px] text-white/80 italic leading-relaxed relative z-10">
-                  "{memories[0].content}"
-                </p>
-                <div className="mt-3 pt-3 border-t border-white/5 flex justify-between items-center relative z-10">
-                   <span className="text-[8px] uppercase font-black text-bio-cyan/60 tracking-widest">{memories[0].category}</span>
-                   <span className="text-[8px] font-mono text-white/20">SEQ-{memories[0].id.slice(0,4)}</span>
-                </div>
-              </NeuralCard>
-            </section>
-          )}
-        </div>
+            </AnimatePresence>
+          </div>
+        </section>
       </div>
+      {/* System Health Status */}
       <div className="mt-auto pt-6 border-t border-white/5">
-        <NeuralCard className="p-4 bg-neural-bg/50 border-white/5">
+        <NeuralCard className="p-4 bg-neural-bg/50 border-white/10">
           <div className="flex items-center justify-between text-[10px] text-white/30 font-black uppercase mb-3">
             <div className="flex items-center gap-2"><Clock size={12} /> Synaptic Flow</div>
-            <span className="text-bio-cyan">74%</span>
+            <span className="text-bio-cyan font-mono">0.4ms</span>
           </div>
           <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
              <motion.div
-               animate={{ width: ["40%", "74%", "60%"] }}
-               transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+               animate={{ width: ["10%", "90%", "30%", "60%"] }}
+               transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
                className="h-full bg-gradient-to-r from-bio-cyan/20 to-bio-cyan shadow-[0_0_10px_#00d4ff]"
              />
           </div>

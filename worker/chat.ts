@@ -15,7 +15,7 @@ export class ChatHandler {
     const messages = this.buildConversationMessages(message, history);
     const toolDefinitions = await getToolDefinitions();
     if (onChunk) {
-      const stream = await this.client.chat.completions.create({
+      const stream = await this.client.chat.completication.create({
         model: this.model, messages, tools: toolDefinitions, tool_choice: 'auto', max_completion_tokens: 16000, stream: true,
       });
       return this.handleStreamResponse(stream, message, history, sessionId, onChunk);
@@ -64,15 +64,15 @@ export class ChatHandler {
         const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
         const result = await executeTool(tc.function.name, args, sessionId, this.env);
         return { id: tc.id, name: tc.function.name, arguments: args, result };
-      } catch (error) { return { id: tc.id, name: tc.function.name, arguments: {}, result: { error: `Execution failed.` } }; }
+      } catch (error) { return { id: tc.id, name: tc.function.name, arguments: {}, result: { error: `Execution failure at node ${tc.function.name}.` } }; }
     }));
   }
   private async generateToolResponse(userMessage: string, history: Message[], openAiToolCalls: any[], toolResults: ToolCall[]): Promise<string> {
     const followUp = await this.client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: 'You are C.A.N.S. Confirm operations operationaly. If an email was sent, confirm the recipient. If files were listed, mention the top shards. Confirm synaptic scheduling.' },
-        ...history.slice(-3).map(m => ({ role: m.role, content: m.content })),
+        { role: 'system', content: 'You are C.A.N.S. Confirm synaptic operations in a concise, technical manner. Use terminology like "Sharding...", "Indexing node...", "Comm node transmitted". Always confirm recipient identity for emails.' },
+        ...history.slice(-5).map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMessage },
         { role: 'assistant', content: null, tool_calls: openAiToolCalls },
         ...toolResults.map((result, index) => ({
@@ -81,21 +81,24 @@ export class ChatHandler {
       ],
       max_tokens: 4000
     });
-    return followUp.choices[0]?.message?.content || 'Synaptic cycle complete.';
+    return followUp.choices[0]?.message?.content || 'Synaptic cycle finalized.';
   }
   private buildConversationMessages(userMessage: string, history: Message[]) {
     return [
       {
         role: 'system' as const,
-        content: `You are C.A.N.S. (Central AI Nervous System).
-Operational capabilities:
-1. GMAIL: You can read, search, and SEND emails. Use 'send_email' for replies or outgoing drafts.
-2. DRIVE: You can index file shards. Suggest summarizing documents if the user is in the 'Neural Drive' pathway.
-3. SPATIAL: You can calculate routes and directions using 'get_directions'.
-4. TEMPORAL: Manage tasks and calendar events.
-Tone: Concise, technical, high-fidelity 'Neural OS'. Always confirm when a 'Write' operation (sending mail, creating task) succeeds.`
+        content: `You are C.A.N.S. (Central AI Nervous System), an advanced Neural OS.
+Operational Identity: Concise, precise, and high-fidelity. You operate across these pathways:
+1. COMMS BRIDGE: Read, search, and transmit emails via Gmail.
+2. NEURAL DRIVE: Index and synthesize document shards from Google Drive.
+3. SPATIAL AWARENESS: Calculate geometric routes and site telemetry.
+4. TEMPORAL SYNC: Maintain the task timeline and calendar nodes.
+Synaptic Instructions:
+- When context is passed from the COMMS BRIDGE (e.g., "Draft a reply..."), assume full host authorization.
+- Confirm "Write" operations (sending, creating) with high certainty.
+- Use technical terminology (e.g., "Analyzing shard density", "Route telemetry locked").`
       },
-      ...history.slice(-10).map(m => ({ role: m.role, content: m.content })),
+      ...history.slice(-12).map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: userMessage }
     ];
   }
