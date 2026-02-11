@@ -78,9 +78,9 @@ export class AppController extends DurableObject<Env> {
   async saveServiceTokens(sessionId: string, service: string, tokens: ServiceTokens, email: string): Promise<void> {
     const tokenKey = `tokens:${sessionId}:${service}:${email}`;
     const metaKey = `service:${sessionId}:${service}:${email}`;
-    // Store tokens
+    // Store tokens separately to avoid accidental leakage
     await this.ctx.storage.put(tokenKey, { ...tokens, email });
-    // Store metadata for listing
+    // Store metadata for public listing
     const meta: ConnectedService = {
       name: service,
       email: email,
@@ -91,7 +91,7 @@ export class AppController extends DurableObject<Env> {
       scopes: tokens.scopes
     };
     await this.ctx.storage.put(metaKey, meta);
-    // Keep track of account emails for this service/session
+    // Maintain a session-bound account index for quick lookup
     const accountsKey = `accounts:${sessionId}:${service}`;
     const accounts = await this.ctx.storage.get<string[]>(accountsKey) || [];
     if (!accounts.includes(email)) {

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { chatService } from "@/lib/chat";
 import { ConnectedService, SystemStats } from "../../worker/types";
-import { Settings, Shield, Mail, Database, Zap, RefreshCw, CheckCircle2, UserPlus, Trash2, Globe } from "lucide-react";
+import { Settings, Shield, Mail, Database, Zap, RefreshCw, CheckCircle2, UserPlus, Trash2, Globe, FlaskConical } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,21 @@ export function SettingsPage() {
       toast.error("Failed to generate auth bridge");
     }
   };
+  const handleAddMock = async () => {
+    const email = window.prompt("Enter mock identity email:");
+    if (!email || !email.includes('@')) return;
+    try {
+      const success = await chatService.addMockAccount(email);
+      if (success) {
+        toast.success(`Mock Identity Injected: ${email}`);
+        fetchStatus();
+      } else {
+        toast.error("Mock injection failed");
+      }
+    } catch (e) {
+      toast.error("Injection fault");
+    }
+  };
   const handleDisconnect = async (email: string) => {
     try {
       const success = await chatService.disconnectNode('google', email);
@@ -81,14 +96,24 @@ export function SettingsPage() {
                   <Shield className="text-bio-cyan w-4 h-4" />
                   <h2 className="text-sm font-black uppercase tracking-widest text-white/40">Linked Identity Nodes</h2>
                 </div>
-                <Button
-                  onClick={handleConnect}
-                  variant="ghost"
-                  size="sm"
-                  className="text-[10px] uppercase font-black text-bio-cyan hover:bg-bio-cyan/10"
-                >
-                  <UserPlus size={14} className="mr-2" /> Add Google Link
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleAddMock}
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] uppercase font-black text-memory-violet hover:bg-memory-violet/10"
+                  >
+                    <FlaskConical size={14} className="mr-2" /> Mock Node
+                  </Button>
+                  <Button
+                    onClick={handleConnect}
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] uppercase font-black text-bio-cyan hover:bg-bio-cyan/10"
+                  >
+                    <UserPlus size={14} className="mr-2" /> Add Google Link
+                  </Button>
+                </div>
               </div>
               <NeuralCard className="p-6 space-y-4 border-bio-cyan/10 bg-bio-cyan/[0.02]">
                 <AnimatePresence mode="popLayout">
@@ -103,11 +128,14 @@ export function SettingsPage() {
                         <div className="flex items-center gap-4">
                           <div className="h-10 w-10 rounded-full bg-bio-cyan/10 flex items-center justify-center text-bio-cyan relative">
                             <Mail size={18} />
-                            <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-[#10b981] rounded-full border-2 border-[#0a0e1a] animate-pulse" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-white/90">{account.display_name || 'Synaptic Node'}</p>
-                            <p className="text-[10px] font-mono text-white/30 uppercase">{account.email}</p>
+                            <p className="text-sm font-black text-white">{account.display_name || 'Synaptic Node'}</p>
+                            <p className="text-[10px] font-mono text-white/40 uppercase">{account.email}</p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                               <CheckCircle2 size={10} className="text-[#10b981]" />
+                               <span className="text-[9px] font-black uppercase text-[#10b981] tracking-widest">Connected</span>
+                            </div>
                           </div>
                         </div>
                         <Button
@@ -164,7 +192,7 @@ export function SettingsPage() {
                     <span className="text-bio-cyan">Optimized</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       className="h-full bg-bio-cyan shadow-[0_0_15px_rgba(0,212,255,0.4)]"
                       initial={{ width: 0 }}
                       animate={{ width: "78%" }}

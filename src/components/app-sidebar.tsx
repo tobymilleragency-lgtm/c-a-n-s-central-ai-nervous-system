@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MessageSquare, Database, BrainCircuit, Clock, Settings, ExternalLink, CheckCircle2, FileText, Map, UserCheck } from "lucide-react";
+import { MessageSquare, Database, BrainCircuit, Clock, Settings, UserPlus, CheckCircle2, FileText, Map, UserCheck } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { chatService } from "@/lib/chat";
 import { SessionInfo, ConnectedService } from "../../worker/types";
-import { toast } from "sonner";
 const pathways = [
   { icon: BrainCircuit, label: "Cortex", path: "/", color: "text-bio-cyan" },
   { icon: MessageSquare, label: "Comms", path: "/comms", color: "text-bio-cyan" },
@@ -76,7 +75,7 @@ export function AppSidebar(): JSX.Element {
         </SidebarGroup>
         <SidebarGroup className="mt-8">
           <SidebarGroupLabel className="text-white/20 text-[10px] uppercase font-black tracking-widest mb-3">Neural Linkage</SidebarGroupLabel>
-          <div className="px-2 mb-2">
+          <div className="px-2 mb-2 space-y-2">
             <Button
               onClick={async () => {
                 const url = await chatService.getAuthUrl('google');
@@ -87,19 +86,23 @@ export function AppSidebar(): JSX.Element {
               variant="outline"
               className={cn(
                 "w-full justify-start gap-3 h-11 text-[9px] font-black uppercase tracking-widest transition-all duration-500",
-                isConnected
-                  ? "bg-[#10b981]/10 border-[#10b981]/40 text-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.1)]"
-                  : "bg-bio-cyan/5 border-bio-cyan/20 text-bio-cyan hover:bg-bio-cyan/10"
+                "bg-bio-cyan/5 border-bio-cyan/20 text-bio-cyan hover:bg-bio-cyan/10"
               )}
             >
-              {isConnected ? <UserCheck size={14} className="animate-pulse" /> : <ExternalLink size={14} />}
-              <span className="truncate">
-                {isConnected ? `${activeAccounts.length} Nodes Linked` : 'Connect Google'}
-              </span>
+              <UserPlus size={14} className={cn(isConnected && "animate-pulse")} />
+              <span className="truncate">Add Google Account</span>
             </Button>
+            {isConnected && (
+              <div className="flex items-center gap-2 px-1 py-1 bg-[#10b981]/10 border border-[#10b981]/20 rounded-lg">
+                <UserCheck size={10} className="text-[#10b981]" />
+                <span className="text-[8px] font-mono text-[#10b981] uppercase truncate">
+                  {activeAccounts.length} Nodes Synchronized
+                </span>
+              </div>
+            )}
             {isConnected && primaryEmail && (
-              <p className="text-[8px] font-mono text-white/20 mt-2 px-1 truncate uppercase">
-                Primary: {primaryEmail}
+              <p className="text-[8px] font-mono text-white/20 px-1 truncate uppercase">
+                Host: {primaryEmail}
               </p>
             )}
           </div>

@@ -21,6 +21,25 @@ export function coreRoutes(app: Hono<{ Bindings: Env }>) {
     });
 }
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
+    app.post('/api/auth/mock', async (c) => {
+        try {
+            const { email, sessionId } = await c.req.json();
+            if (!email || !sessionId) return c.json({ success: false, error: "Invalid payload" }, 400);
+            const displayName = email.split('@')[0];
+            const controller = getAppController(c.env);
+            await controller.saveServiceTokens(sessionId, 'google', {
+                access_token: 'mock',
+                refresh_token: 'mock',
+                expiry_date: Date.now() + (3600 * 1000),
+                scopes: [],
+                display_name: displayName,
+                email: email
+            }, email);
+            return c.json({ success: true, email, displayName });
+        } catch (error) {
+            return c.json({ success: false, error: String(error) }, 500);
+        }
+    });
     app.get('/api/auth/google-popup', async (c) => {
         const sessionId = c.req.query('state') || 'default';
         const clientId = c.env.GOOGLE_CLIENT_ID || 'MOCK_ID';
@@ -82,7 +101,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                 refresh_token: tokens.refresh_token,
                 expiry_date: Date.now() + (tokens.expires_in * 1000),
                 scopes: tokens.scope?.split(' ') || [],
-                display_name: displayName
+                display_name: displayName,
+                email: email
             }, email);
             return c.html(`
                 <html>
@@ -99,7 +119,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                                     }, '*');
                                     setTimeout(() => window.close(), 1500);
                                 } else {
-                                    console.log("Opener lost. Redirecting...");
                                     window.location.href = '/';
                                 }
                             } catch (e) {
@@ -114,9 +133,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                                 <div style="height: 100%; background: #00d4ff; width: 0%; animation: sync-progress 1.5s ease-out forwards;"></div>
                             </div>
                         </div>
-                        <style>
-                            @keyframes sync-progress { to { width: 100%; } }
-                        </style>
+                        <style>@keyframes sync-progress { to { width: 100%; } }</style>
                     </body>
                 </html>
             `);
