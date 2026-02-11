@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NeuralCard } from "@/components/ui/neural-card";
 import { Mail, Calendar, Activity, Clock, UserCircle, ChevronDown } from "lucide-react";
@@ -7,7 +7,6 @@ import { ConnectedService, GmailMessage } from "../../../worker/types";
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useRef } from "react";
 export function PeripheralPanel() {
   const [services, setServices] = useState<ConnectedService[]>([]);
   const [activeAccount, setActiveAccount] = useState<string | null>(null);
@@ -38,7 +37,6 @@ export function PeripheralPanel() {
   useEffect(() => {
     activeAccountRef.current = activeAccount;
   }, [activeAccount]);
-
   useEffect(() => {
     fetchData(activeAccountRef.current || undefined);
     const interval = setInterval(() => fetchData(activeAccountRef.current || undefined), 15000);
@@ -89,9 +87,9 @@ export function PeripheralPanel() {
           </h3>
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
-        <div className="h-32 w-full min-w-0 overflow-hidden relative">
-          <ResponsiveContainer width="100%" height="100%" aspect={2.5} debounce={0} minWidth={0} minHeight={undefined}>
-            <AreaChart data={telemetry} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+        <div className="h-32 min-h-32 w-full aspect-[3/1] relative min-w-0 overflow-visible">
+          <ResponsiveContainer width="100%" height="100%" debounce={0} minWidth={0}>
+            <AreaChart data={telemetry} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.4}/>
@@ -104,7 +102,7 @@ export function PeripheralPanel() {
                 stroke="#00d4ff"
                 fillOpacity={1}
                 fill="url(#colorVal)"
-                strokeWidth={1}
+                strokeWidth={2}
                 isAnimationActive={false}
               />
             </AreaChart>

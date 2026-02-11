@@ -54,9 +54,29 @@ export function TopBar() {
           <span className="text-[10px] uppercase tracking-widest text-bio-cyan/60 font-mono hidden md:block">Neural OS v1.2</span>
         </div>
         <div className="flex items-center gap-4">
-          <Orb icon={Mail} count={services.length} active={activeCount > 0} label="Synaptic Comms" color="cyan" connecting={isSyncing} emails={services.map(s => s.email).filter(Boolean) as string[]} />
-          <Orb icon={Calendar} active={activeCount > 0} label="Temporal Nodes" color="violet" connecting={isSyncing} />
-          <Orb icon={Cpu} active={true} label="Core Processor" color="green" connecting={isSyncing} />
+          <Orb 
+            icon={Mail} 
+            count={services.length} 
+            active={activeCount > 0} 
+            label="Synaptic Comms" 
+            color="cyan" 
+            connecting={isSyncing} 
+            emails={services.map(s => s.email).filter(Boolean) as string[]} 
+          />
+          <Orb 
+            icon={Calendar} 
+            active={activeCount > 0} 
+            label="Temporal Nodes" 
+            color="violet" 
+            connecting={isSyncing} 
+          />
+          <Orb 
+            icon={Cpu} 
+            active={true} 
+            label="Core Processor" 
+            color="green" 
+            connecting={isSyncing} 
+          />
         </div>
       </header>
     </TooltipProvider>
@@ -104,7 +124,7 @@ function Orb({
             <Icon size={14} className={cn(active && "animate-pulse")} />
           </div>
           {hasCount && (
-            <div className="absolute -bottom-1 -left-1 h-4 w-4 rounded-full bg-bio-cyan text-neural-bg text-[8px] font-black flex items-center justify-center border border-[#0a0e1a] shadow-lg shadow-bio-cyan/50">
+            <div className="absolute -top-1 -left-1 h-4 w-4 rounded-full neural-glass bg-bio-cyan/10 border-bio-cyan/30 text-bio-cyan text-[8px] font-bold flex items-center justify-center shadow-[0_0_10px_rgba(0,212,255,0.3)] z-50">
               {count}
             </div>
           )}
