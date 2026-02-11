@@ -104,7 +104,7 @@ function Orb({
             <Icon size={14} className={cn(active && "animate-pulse")} />
           </div>
           {hasCount && (
-            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-bio-cyan text-neural-bg text-[8px] font-black flex items-center justify-center border border-[#0a0e1a] shadow-sm">
+            <div className="absolute -bottom-1 -left-1 h-4 w-4 rounded-full bg-bio-cyan text-neural-bg text-[8px] font-black flex items-center justify-center border border-[#0a0e1a] shadow-lg shadow-bio-cyan/50">
               {count}
             </div>
           )}

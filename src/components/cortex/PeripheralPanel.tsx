@@ -7,6 +7,7 @@ import { ConnectedService, GmailMessage } from "../../../worker/types";
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useRef } from "react";
 export function PeripheralPanel() {
   const [services, setServices] = useState<ConnectedService[]>([]);
   const [activeAccount, setActiveAccount] = useState<string | null>(null);
@@ -15,6 +16,7 @@ export function PeripheralPanel() {
   const [telemetry, setTelemetry] = useState(() =>
     Array.from({ length: 12 }, (_, i) => ({ value: 20 + Math.random() * 60 }))
   );
+  const activeAccountRef = useRef<string | null>(null);
   const fetchData = useCallback(async (email?: string) => {
     try {
       const [status, emailData, taskData] = await Promise.all([
@@ -26,18 +28,22 @@ export function PeripheralPanel() {
       setEmails(Array.isArray(emailData) ? emailData.slice(0, 3) : []);
       setTasks(Array.isArray(taskData) ? taskData.slice(0, 3) : []);
       setTelemetry(prev => [...prev.slice(1), { value: 30 + Math.random() * 50 }]);
-      if (!email && Array.isArray(status) && status.length > 0 && !activeAccount) {
-        setActiveAccount(status[0].email || null);
+      if (!email && Array.isArray(status) && status.length > 0) {
+        setActiveAccount(prev => prev || (status[0].email || null));
       }
     } catch (error) {
       console.error("Peripheral failure:", error);
     }
-  }, [activeAccount]);
+  }, []);
   useEffect(() => {
-    fetchData(activeAccount || undefined);
-    const interval = setInterval(() => fetchData(activeAccount || undefined), 15000);
+    activeAccountRef.current = activeAccount;
+  }, [activeAccount]);
+
+  useEffect(() => {
+    fetchData(activeAccountRef.current || undefined);
+    const interval = setInterval(() => fetchData(activeAccountRef.current || undefined), 15000);
     return () => clearInterval(interval);
-  }, [fetchData, activeAccount]);
+  }, [fetchData]);
   const isGmailConnected = useMemo(() => services.some(s => s.name === 'google' && s.status === 'active'), [services]);
   return (
     <div className="p-6 space-y-8 h-full flex flex-col no-scrollbar min-w-0 overflow-hidden">
@@ -83,9 +89,8 @@ export function PeripheralPanel() {
           </h3>
           <span className="text-[8px] font-mono text-bio-cyan animate-pulse">LIVE</span>
         </div>
-        {/* Recharts warning fix: Added min-w-0, min-h-[120px], and debounce to ResponsiveContainer */}
-        <div className="h-32 min-h-[120px] w-full opacity-80 relative min-w-0 overflow-hidden">
-          <ResponsiveContainer width="100%" height="100%" aspect={2.5} debounce={50}>
+        <div className="h-32 w-full min-w-0 overflow-hidden relative">
+          <ResponsiveContainer width="100%" height="100%" aspect={2.5} debounce={0} minWidth={0} minHeight={undefined}>
             <AreaChart data={telemetry} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
