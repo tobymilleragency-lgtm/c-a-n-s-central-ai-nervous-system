@@ -1,8 +1,8 @@
 import type { Message, ChatState, ToolCall, SessionInfo, ConnectedService, GmailMessage } from '../../worker/types';
 export interface ChatResponse { success: boolean; data?: ChatState; error?: string; }
 export const MODELS = [
-  { id: 'google-ai-studio/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-  { id: 'openai/gpt-4o', name: 'GPT-4o' }
+  { id: '@google/gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash' },
+  { id: '@cf/meta/llama-3.1-8b-instruct-turbo', name: 'Llama 3.1 Turbo' }
 ];
 class ChatService {
   private sessionId: string;

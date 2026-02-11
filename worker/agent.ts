@@ -12,7 +12,7 @@ export class ChatAgent extends Agent<Env, ChatState> {
     messages: [],
     sessionId: '',
     isProcessing: false,
-    model: 'google-ai-studio/gemini-2.0-flash'
+    model: '@google/gemini-2.0-flash-exp'
   };
   async onStart(): Promise<void> {
     this.state.sessionId = this.name;
@@ -60,7 +60,8 @@ export class ChatAgent extends Agent<Env, ChatState> {
     }
     const userMsg = createMessage('user', message.trim());
     await controller.saveMessage(this.state.sessionId, userMsg);
-    this.setState({ ...this.state, messages: [...this.state.messages, userMsg], isProcessing: true });
+    const updatedMessages = [...this.state.messages, userMsg];
+    this.setState({ ...this.state, messages: updatedMessages, isProcessing: true });
     try {
       if (stream) {
         const { readable, writable } = new TransformStream();
@@ -68,12 +69,12 @@ export class ChatAgent extends Agent<Env, ChatState> {
         const encoder = createEncoder();
         (async () => {
           try {
-            const response = await this.chatHandler!.processMessage(message, this.state.messages, this.state.sessionId, (chunk: string) => {
+            const response = await this.chatHandler!.processMessage(message, updatedMessages, this.state.sessionId, (chunk: string) => {
               writer.write(encoder.encode(chunk));
             });
             const assistantMsg = createMessage('assistant', response.content, response.toolCalls);
             await controller.saveMessage(this.state.sessionId, assistantMsg);
-            this.setState({ ...this.state, messages: [...this.state.messages, assistantMsg], isProcessing: false });
+            this.setState({ ...this.state, messages: [...updatedMessages, assistantMsg], isProcessing: false });
           } catch (err) { 
             console.error('Streaming error:', err);
             this.setState({ ...this.state, isProcessing: false });
@@ -83,10 +84,10 @@ export class ChatAgent extends Agent<Env, ChatState> {
         })();
         return createStreamResponse(readable);
       }
-      const response = await this.chatHandler!.processMessage(message, this.state.messages, this.state.sessionId);
+      const response = await this.chatHandler!.processMessage(message, updatedMessages, this.state.sessionId);
       const assistantMsg = createMessage('assistant', response.content, response.toolCalls);
       await controller.saveMessage(this.state.sessionId, assistantMsg);
-      this.setState({ ...this.state, messages: [...this.state.messages, assistantMsg], isProcessing: false });
+      this.setState({ ...this.state, messages: [...updatedMessages, assistantMsg], isProcessing: false });
       return Response.json({ success: true, data: this.state });
     } catch (error) {
       console.error('Chat error:', error);
