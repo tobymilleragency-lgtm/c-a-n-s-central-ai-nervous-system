@@ -29,6 +29,7 @@ export function AppSidebar(): JSX.Element {
   const loadSessions = async () => setSessions(await chatService.listSessions());
   const loadServices = async () => setServices(await chatService.getServiceStatus());
   const isConnected = (name: string) => services.some(s => s.name === name && s.status === 'active');
+  const liveLabels = ['Comms', 'Neural Drive', 'Temporal'];
   return (
     <Sidebar className="border-r-0 bg-transparent">
       <SidebarHeader className="p-6">
@@ -45,7 +46,7 @@ export function AppSidebar(): JSX.Element {
           <SidebarMenu>
             {pathways.map((item) => {
               const active = location.pathname === item.path;
-              const hasLiveNode = isConnected('gmail') && (item.label === 'Comms' || item.label === 'Neural Drive' || item.label === 'Temporal') && item.label !== 'Config';
+              const hasLiveNode = isConnected('gmail') && liveLabels.includes(item.label) && item.label !== 'Config';
               return (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton asChild isActive={active} className={cn("group h-11 rounded-xl px-4 mb-1 transition-all", active ? "bg-bio-cyan/10 text-bio-cyan border border-bio-cyan/20" : "text-white/40 hover:bg-white/5")}>

@@ -120,6 +120,7 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
             const headers = json.payload.headers;
             return {
               id: json.id,
+              threadId: m.threadId || json.threadId || json.id,
               subject: headers.find((h: any) => h.name === 'Subject')?.value || 'No Subject',
               sender: headers.find((h: any) => h.name === 'From')?.value || 'Unknown',
               date: headers.find((h: any) => h.name === 'Date')?.value || '',
@@ -129,11 +130,11 @@ export async function executeTool(name: string, args: Record<string, unknown>, s
           return { emails };
         } catch (e) {
           const mockEmails: GmailMessage[] = [
-            {id: 'mock1', sender: 'alice@neural.net &lt;alice@neural.net&gt;', subject: 'Synaptic Calibration Complete', date: new Date(Date.now() - 2*60*1000).toLocaleString(), snippet: 'Neural pathways aligned successfully. Cortex ready for transmission.'},
-            {id: 'mock2', sender: 'bob@synapse.ai &lt;bob@synapse.ai&gt;', subject: 'Temporal Node Update', date: new Date(Date.now() - 30*60*1000).toLocaleString(), snippet: 'Buffer synchronization 98% complete. Processing shards...'},
-            {id: 'mock3', sender: 'system@cans.os &lt;system@cans.os&gt;', subject: 'Drive Index Rebuilt', date: new Date(Date.now() - 1*60*1000).toLocaleString(), snippet: 'Neural Drive shards indexed. 247 files available for query.'},
-            {id: 'mock4', sender: 'user@external.com &lt;user@external.com&gt;', subject: 'Query Response', date: new Date(Date.now() - 5*60*1000).toLocaleString(), snippet: 'AI synthesis complete. Reply drafted in Cortex buffer.'},
-            {id: 'mock5', sender: 'dev@neuraldrive.com &lt;dev@neuraldrive.com&gt;', subject: 'Spatial Mapping Alert', date: new Date(Date.now() - 10*60*1000).toLocaleString(), snippet: 'Radar telemetry updated. 3 new nodes detected in vicinity.'}
+            {id: 'mock1', threadId: 'mock-thread-mock1', sender: 'alice@neural.net &lt;alice@neural.net&gt;', subject: 'Synaptic Calibration Complete', date: new Date(Date.now() - 2*60*1000).toLocaleString(), snippet: 'Neural pathways aligned successfully. Cortex ready for transmission.'},
+            {id: 'mock2', threadId: 'mock-thread-mock2', sender: 'bob@synapse.ai &lt;bob@synapse.ai&gt;', subject: 'Temporal Node Update', date: new Date(Date.now() - 30*60*1000).toLocaleString(), snippet: 'Buffer synchronization 98% complete. Processing shards...'},
+            {id: 'mock3', threadId: 'mock-thread-mock3', sender: 'system@cans.os &lt;system@cans.os&gt;', subject: 'Drive Index Rebuilt', date: new Date(Date.now() - 1*60*1000).toLocaleString(), snippet: 'Neural Drive shards indexed. 247 files available for query.'},
+            {id: 'mock4', threadId: 'mock-thread-mock4', sender: 'user@external.com &lt;user@external.com&gt;', subject: 'Query Response', date: new Date(Date.now() - 5*60*1000).toLocaleString(), snippet: 'AI synthesis complete. Reply drafted in Cortex buffer.'},
+            {id: 'mock5', threadId: 'mock-thread-mock5', sender: 'dev@neuraldrive.com &lt;dev@neuraldrive.com&gt;', subject: 'Spatial Mapping Alert', date: new Date(Date.now() - 10*60*1000).toLocaleString(), snippet: 'Radar telemetry updated. 3 new nodes detected in vicinity.'}
           ];
           return { emails: mockEmails };
         }
